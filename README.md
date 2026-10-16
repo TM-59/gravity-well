@@ -3,11 +3,14 @@
 Pilot a spacecraft through a star's gravity well and rendezvous with a moon. A C11 orbital-mechanics toy: velocity-Verlet (symplectic) integration, a restricted star + moon field, and a top-view ASCII cockpit.
 (C言語の軌道力学シミュレータ。重力場の中で宇宙船を操作し、月とランデブーします。)
 
+![demo](docs/demo.gif)
+
 ## Run
 
 ```sh
 make && ./gravity-well          # interactive
 ./gravity-well --snapshot       # one frame, no terminal needed
+./gravity-well --gif docs/demo.gif  # scripted Hohmann transfer as an animated GIF
 make test && make plots         # unit tests and docs/*.svg
 docker build -t gravity-well .  # same, reproducibly
 ```

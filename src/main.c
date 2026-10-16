@@ -7,6 +7,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "gif.h"
 #include "orbit.h"
 #include "render.h"
 #include "svg.h"
@@ -77,6 +78,64 @@ static int snapshot(void)
     return 0;
 }
 
+static int gif_colour(char c)
+{
+    if (c == '*') return 2;
+    if (c == 'o') return 5;
+    if (c == '.') return 4;
+    if (c == '^' || c == 'v' || c == '<' || c == '>') return 3;
+    return 1;
+}
+
+/* Scripted Hohmann transfer 1 -> 2 (burn, coast half an ellipse, circularise) as an animated GIF. */
+static int gif_demo(const char *path)
+{
+    World w = world_default();
+    double r1 = 1.0, r2 = 2.0, a = 0.5 * (r1 + r2);
+    Ship s = {r1, 0.0, 0.0, circular_speed(&w, r1)};
+    double dt = 0.004, t = 0.0;
+    double t_burn1 = 0.25 * circular_period(&w, r1), t_burn2 = t_burn1 + 0.5 * circular_period(&w, a);
+    double t_end = t_burn2 + 0.6 * circular_period(&w, r2);
+    unsigned char pal[GIF_COLOURS][3] = {{8, 10, 24}, {235, 235, 235}, {255, 205, 60}, {90, 210, 255},
+                                         {95, 100, 130}, {140, 160, 255}};
+    const int scale = 3, cw = RENDER_COLS * 6 * scale, ch = RENDER_ROWS * 9 * scale;
+    static unsigned char px[RENDER_COLS * 6 * 3 * RENDER_ROWS * 9 * 3];
+    static char buf[RENDER_COLS * RENDER_ROWS * 4];
+    static Ship trail[TRAIL];
+    int tlen = 0, head = 0, b1 = 0, b2 = 0;
+    Gif *g = gif_open(path, cw, ch, pal, 6);
+    if (!g) return 1;
+    for (int k = 0; t < t_end; k++) {
+        if (!b1 && t >= t_burn1) {
+            double v = sqrt(w.star_gm * (2.0 / r1 - 1.0 / a)), sp = hypot(s.vx, s.vy);
+            s.vx *= v / sp; s.vy *= v / sp;
+            b1 = 1;
+        }
+        if (!b2 && t >= t_burn2) {
+            double r = hypot(s.x, s.y), vc = circular_speed(&w, r), sp = hypot(s.vx, s.vy);
+            s.vx *= vc / sp; s.vy *= vc / sp;
+            b2 = 1;
+        }
+        if (k % 8 == 0) {
+            trail[head] = s;
+            head = (head + 1) % TRAIL;
+            if (tlen < TRAIL) tlen++;
+        }
+        if (k % 40 == 0) {
+            render_frame(&w, &s, t, atan2(s.vy, s.vx), trail, tlen, buf, sizeof buf);
+            gif_draw_text(px, cw, ch, buf, scale, gif_colour);
+            if (gif_frame(g, px, 0)) return 1;
+        }
+        orbit_step(&w, &s, t, 0.0, 0.0, dt);
+        t += dt;
+    }
+    render_frame(&w, &s, t, atan2(s.vy, s.vx), trail, tlen, buf, sizeof buf);
+    gif_draw_text(px, cw, ch, buf, scale, gif_colour);
+    if (gif_frame(g, px, 200) || gif_close(g)) return 1;
+    printf("final radius %.4f (target %.1f)\n", hypot(s.x, s.y), r2);
+    return 0;
+}
+
 static struct termios saved;
 static void restore(void) { tcsetattr(STDIN_FILENO, TCSANOW, &saved); fputs("\033[?25h", stdout); }
 
@@ -140,5 +199,6 @@ int main(int argc, char **argv)
 {
     if (argc > 1 && strcmp(argv[1], "--headless") == 0) return headless(argc > 2 ? argv[2] : ".");
     if (argc > 1 && strcmp(argv[1], "--snapshot") == 0) return snapshot();
+    if (argc > 1 && strcmp(argv[1], "--gif") == 0) return gif_demo(argc > 2 ? argv[2] : "demo.gif");
     return play();
 }
