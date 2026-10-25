@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An orbital observatory. Pilot a research tug through a star's gravity well, or watch a two-burn Hohmann transfer computed in C.">
+  <title>Gravity Well — Orbital Observatory</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="orbit.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="./" aria-label="Gravity Well home"><span class="mark" aria-hidden="true">◎</span> GRAVITY WELL</a>
+    <span class="mastnote">AN ORBITAL MECHANICS OBSERVATORY</span>
+    <span class="local"><i></i> LOCAL SIMULATION</span>
+  </header>
+  <main>
+    <section class="hero">
+      <img src="art/observatory.jpg" alt="An original research tug above a sunlit world. Decorative illustration, not the simulated view.">
+      <div class="hero-copy"><p class="eyebrow">FLIGHT LAB / 01</p><h1>Fall into an orbit.</h1><p>A little thrust. An entirely different journey.<br>Explore the quiet mechanics of getting somewhere.</p></div>
+      <span class="art-caption">RESEARCH TUG / ARTIST'S IMPRESSION</span>
+    </section>
+    <div class="workspace">
+      <section class="chart panel" aria-labelledby="chart-title">
+        <div class="panel-top"><div><p class="eyebrow">LIVE / TOP-DOWN</p><h2 id="chart-title">Orbital plane</h2></div><div class="chart-options"><label for="rate">Time</label><select id="rate"><option value="1">×1</option><option value="4">×4</option></select><button id="pause" disabled>Resume</button></div></div>
+        <div class="plot"><canvas id="map" role="img" aria-label="Live orbital plot. Ship position and velocity are also reported in the flight data panel."></canvas><span id="plot-note">Fixed scale · 1 grid interval = 1 L</span><span id="status" role="status">Loading orbital engine…</span></div>
+        <div class="legend"><span><b class="key ship-key">◆</b> Research tug</span><span><b class="key moon-key">○</b> Moon</span><span><b class="key trail-key">━</b> Flown path</span><span><b class="key velocity-key">↗</b> Velocity × 0.45 T</span><span><b class="key reference-key">┄</b> Reference circles</span></div>
+      </section>
+      <aside class="sidebar">
+        <section class="panel mission"><p class="eyebrow">YOUR FLIGHT</p><h2 id="mission-title">Meet the moon.</h2><p id="mission-copy">Close to within 0.15 L and match its velocity to within 0.25 L/T. Turning changes where the engine points, not where you drift.</p><div class="mission-buttons"><button id="pilot" class="primary" disabled>Take control <span>↗</span></button><button id="demo" disabled>Watch a Hohmann transfer <span>→</span></button></div></section>
+        <section class="panel telemetry"><div class="telemetry-title"><p class="eyebrow">FLIGHT DATA</p><span id="mode-label">MANUAL</span></div>
+          <dl><div><dt>Radius <small>L</small></dt><dd id="radius">1.000</dd></div><div><dt>Speed <small>L/T</small></dt><dd id="speed">1.000</dd></div><div><dt>Energy, star only <small>L²/T²</small></dt><dd id="energy">−0.5000</dd></div><div><dt>Moon distance <small>L</small></dt><dd id="distance">2.000</dd></div><div><dt>Relative speed <small>L/T</small></dt><dd id="relative">0.423</dd></div><div><dt>Elapsed time <small>T</small></dt><dd id="elapsed">0.00</dd></div></dl>
+          <div class="delta"><span>Applied Δv <small>L/T</small></span><output id="delta-v">0.0000</output></div>
+        </section>
+      </aside>
+    </div>
+    <section class="flight-strip panel"><div><p class="eyebrow" id="step-label">MANUAL FLIGHT</p><p id="guidance">Point the nose, then burn. Your momentum does the rest.</p></div><div class="controls" aria-label="Flight controls"><button data-control="left" aria-label="Turn left">A <span>↶</span></button><button data-control="burn" class="burn" aria-label="Hold to burn">W <span>THRUST</span></button><button data-control="right" aria-label="Turn right">D <span>↷</span></button><button id="reset" disabled>Reset</button></div></section>
+    <footer><p><strong>GM = 1</strong> · Dimensionless units: length L, time T. Ship and star symbols enlarged for visibility.</p><p>Heading ≠ velocity · Hold A / W / D · P to pause · No audio or saved data</p></footer>
+  </main>
+  <noscript>This observatory needs JavaScript and WebAssembly. The C terminal edition also runs offline.</noscript>
+</body>
+</html>
