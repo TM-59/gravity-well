@@ -1,0 +1,25 @@
+{
+  "checks": 22,
+  "errors": 0,
+  "externalRequests": 0,
+  "manual": {
+    "time": 1.6000000000000012,
+    "deltaV": 0.024000000000000056,
+    "heading": 2.3707963267948955,
+    "velocityAngle": 1.9698613957670317
+  },
+  "transfer": {
+    "radius": 2.00012696468676,
+    "deltaV": 0.284466366425567,
+    "time": 18.007999999999353,
+    "status": 3
+  },
+  "screenshots": [
+    "before.png",
+    "circularized.jpg",
+    "manual-flight.jpg",
+    "mobile.jpg",
+    "observatory.jpg",
+    "transfer.jpg"
+  ]
+}
