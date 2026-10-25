@@ -1,3 +1,9 @@
 gravity-well
 test_orbit
 test_gif
+test_flight
+dist/
+node_modules/
+__pycache__/
+*.pyc
+.venv/

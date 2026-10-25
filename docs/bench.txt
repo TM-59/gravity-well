@@ -1,0 +1,3 @@
+./test_flight --bench
+Hohmann: dv1=0.154706, burn2 radius=2.000062, final radius=2.000127, circular radius span=0.000167, frames=451
+flight tests passed
