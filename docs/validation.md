@@ -8,7 +8,7 @@
 | `make story-check` | 3 ファイルを作り直してバイト一致 |
 | `make plots` | `docs/run.csv`・SVG 3 枚・`demo.gif` の差分 0(物理と従来出力は不変) |
 | `docker build .`(CI と同じ) | `make test` と `make plots` が成功 |
-| `make web` | WASM 17,055 B、7 ファイル合計 343,007 B |
+| `make web` | WASM 17,055 B、7 ファイル合計 349,448 B |
 | `make smoke` | 36 項目成功、page/console error 0、外部通信 0。The Ice Run を実キーで2回(遠い灯台・戻る / 近い灯台・向かう)航行し、7 場面の順・両方の結末・重い2場面で帯なしを確認。390px で場面の選択肢 44px 以上 |
 
 物語の点(`narrative-score.py`)は推定 0 → ビート表と bench の 3 ファイルで最悪 seed 93・中央値 93(目標 25)。

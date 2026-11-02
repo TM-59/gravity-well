@@ -80,7 +80,15 @@ CI も `docker build .` で同じ環境を使う。
 
 ![第2噴射で半径2の円軌道へ移る](docs/images/circularized.jpg)
 
-![390px幅でも操作とデータを表示。実スマートフォンでの試遊は未検証](docs/images/mobile.jpg)
+### スマートフォン
+
+開くと観測画面の上に「Start the ice run」の案内が出る。タップだけで物語の航行を始められる。
+縦持ちは上から観測画面、操作ボタン、データ、装飾画の順に並べ、観測画面が画面の半分以上を占める。
+横持ちは観測画面を左に画面の高さいっぱいで置き、操作とデータを右に並べる。
+文字はすべて14 CSS px以上、押せる物はすべて44×44 CSS px以上にしている。
+場面の選択肢は場面の下端に固定し、長い場面でもスクロールせずに押せる。
+
+![390px幅の縦持ち。観測画面の下に操作ボタン。実スマートフォンでの試遊は未検証](docs/images/mobile.jpg)
 
 変更前の C レンダラーが生成した GIF の実フレーム。端末版と GIF 出力は現在も使える。
 
@@ -115,7 +123,8 @@ make smoke
 ```
 
 36項目成功、console error / 外部通信とも0件。The Ice Run を実キーと実クリックで両方の結末まで航行する検査を含む。
-WASM 17,055 B、原画込みの初期ダウンロード343,007 B。
+WASM 17,055 B、原画込みの初期ダウンロード349,448 B。
+要件は [docs/requirements.md](docs/requirements.md)、構成は [docs/design.md](docs/design.md)。
 詳細は [検証記録](docs/validation.md)、[機械記録](docs/validation.json)、[原画の生成指示と採否](docs/art-direction.md)。
 人間の初見試遊、実スマートフォン、各ブラウザーでの操作は未検証。公開配信は行っていない。
 

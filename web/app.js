@@ -82,6 +82,7 @@ function reflectControls() {
 }
 const finished = () => voyage ? state && state.leg >= 5 : Boolean(state?.status);
 function pause(value) {
+  if (!value) $('welcome').hidden = true;
   paused = value; accumulator = 0; clearControls();
   $('pause').textContent = finished() ? 'Complete' : paused ? 'Resume' : 'Pause';
   $('pause').disabled = finished();
@@ -236,7 +237,7 @@ function draw() {
     const offset=i*grid*scale;
     line(cx+offset,0,cx+offset,h,'#8fb6c20d'); line(0,cy+offset,w,cy+offset,'#8fb6c20d');
   }
-  ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='#91a5b5';
+  ctx.font='14px ui-monospace,monospace'; ctx.fillStyle='#91a5b5';
   ctx.fillText('+Y',cx+7,20); ctx.fillText('+X',w-27,cy-7);
   line(cx,25,cx,h-25,'#7797a32c'); line(25,cy,w-25,cy,'#7797a32c');
   [1,2,3].forEach(r => {
@@ -353,9 +354,15 @@ controlButtons.forEach(button=>holdButton(button, button.dataset.control));
 voyageButtons.forEach(button=>holdButton(button, button.dataset.voyage));
 window.addEventListener('blur',()=>{if(engine)pause(true)});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&engine)pause(true)});
-$('voyage').onclick=()=>reset(2);
-$('pilot').onclick=()=>reset(0);
-$('demo').onclick=()=>reset(1);
+// On a short screen (a phone held sideways) bring the whole chart into view once a flight is chosen.
+const choose = mode => {
+  $('welcome').hidden = true; reset(mode);
+  if (innerHeight < 560) document.querySelector('.chart').scrollIntoView({block: 'start'});
+};
+$('voyage').onclick=()=>choose(2);
+$('welcome-start').onclick=()=>choose(2);
+$('pilot').onclick=()=>choose(0);
+$('demo').onclick=()=>choose(1);
 $('pause').onclick=()=>{if(!finished()&&!(voyage&&state.scene>=0))pause(!paused)};
 $('reset').onclick=()=>reset(voyage?2:state.mode,false);
 $('voyage-reset').onclick=()=>reset(2,false);
@@ -368,9 +375,38 @@ Object.defineProperty(window,'orbitView',{value:Object.freeze({get snapshot(){
     bannerShown:!$('banner').hidden,bannerText:$('banner').textContent,heavyLog:heavyLog.map(h=>({...h})),
     sceneText:$('scene').hidden?'':$('scene-text').textContent};
 }})});
+// Common test hook of the playability gate (TM-59 project-context, rules/playability.json). Read-only.
+// Logical units are the canvas's CSS pixels, so a point is (clientX - canvas.left, clientY - canvas.top).
+// DOM words and buttons are measured by the gate directly; the canvas labels are measured through fillText.
+function fromCanvas(el) {
+  if (!el || el.hidden || !el.getClientRects().length) return null;
+  const c = canvas.getBoundingClientRect(), r = el.getBoundingClientRect();
+  return {x: r.left + r.width / 2 - c.left, y: r.top + r.height / 2 - c.top};
+}
+window.__tmGate = {
+  version: 1,
+  get logical() { const r = canvas.getBoundingClientRect(); return {w: r.width || 1, h: r.height || 1}; },
+  scene: () => !state ? 'loading' : !$('welcome').hidden ? 'title'
+    : voyage && state.scene >= 0 ? `scene:${SCENES[state.scene].id}` : finished() ? 'done' : paused ? 'paused' : 'play',
+  // The first goal: the ice run's first conversation answered (Ilse's dock scene closed, the tug cast off).
+  goal: () => Boolean(voyage && state && (state.leg > 0 || (state.scene < 0 && state.count > 0))),
+  objective: () => $('mission-title').textContent,
+  texts: () => [],
+  targets: () => [],
+  // The run is a transfer between rings, not a walk: there is no screen direction to steer.
+  player: () => null,
+  // Where a player who reads the screen would tap next: the welcome card, the open scene's first answer, or Resume.
+  hint: () => {
+    if (!state) return null;
+    if (!$('welcome').hidden) return fromCanvas($('welcome-start'));
+    if (voyage && state.scene >= 0) return fromCanvas($('scene-options').firstChild);
+    if (paused && !finished()) return fromCanvas($('pause'));
+    return null;
+  },
+};
 Promise.resolve().then(()=>createOrbit()).then(module=>{
   engine=module;reset(0,false);
-  ['voyage','pilot','demo','pause','reset','voyage-reset'].forEach(id=>$(id).disabled=false);
+  ['voyage','welcome-start','pilot','demo','pause','reset','voyage-reset'].forEach(id=>$(id).disabled=false);
   requestAnimationFrame(frame);
 }).catch(()=>{
   $('status').dataset.state='stop';
