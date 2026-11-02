@@ -40,7 +40,7 @@ static void play_row(char *buf, size_t cap, int i, const RunResult *r)
 
 static void ablation_row(char *buf, size_t cap, int i, const RunResult *r)
 {
-    snprintf(buf, cap, "{\"seed\": \"%d\", \"seconds\": %.2f, \"red\": %.2f}", i, r->seconds, r->red);
+    snprintf(buf, cap, "{\"seed\": \"%d\", \"seconds\": %.2f, \"red\": %.2f, \"tows\": %d}", i, r->seconds, r->red, r->tows);
 }
 
 static void tension_row(char *buf, size_t cap, int i, int run, const RunResult *r)
@@ -129,7 +129,8 @@ static int write_all(const char *dir)
                "the other at its default. Do not edit by hand.\",\n", GEN, ABLATION_SEEDS);
     fprintf(f, "  \"metrics\": {\n"
                "    \"seconds\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", \"label\": \"T on the mission clock at Lamp Quay; every T is flown (the pod's wait and a drifting tug included, no flat additions)\"},\n"
-               "    \"red\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", \"label\": \"T flown with the tank gauge in the red (below 0.25); an empty tank stops the engine until help comes\"}\n"
+               "    \"red\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", \"label\": \"T flown with the tank gauge in the red (below 0.25); an empty tank stops the engine until help comes\"},\n"
+               "    \"tows\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", \"label\": \"failures on the way: a dry tank (a drone drifts out to you, or after the silence Lamp Quay's tug drags you back to the start of the leg), a tow from too close to the star or too far, or a glancing grapple at the pod\"}\n"
                "  },\n  \"effects\": {\n    \"on\": [\n");
     write_rows(f, "      ", ab, ARM_ON);
     fprintf(f, "    ],\n    \"off\": [\n");

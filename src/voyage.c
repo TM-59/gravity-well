@@ -24,7 +24,7 @@
 #define NEAR_R 1.90            /* VE_ROUTE: the near buoy's ring */
 #define FAR_R 2.40             /* VE_ROUTE: the far buoy's ring */
 #define FAR_BONUS 0.30         /* VE_ROUTE: the far buoy's keeper fires its spare fuel down to you */
-#define CACHE_FUEL 0.22        /* VE_CACHE: what is left in the buoy's cache */
+#define CACHE_FUEL 0.22        /* VE_CACHE: what is left in the buoy's cache; it keeps the flare from boiling the tank dry */
 #define FLARE_WOBBLE 0.08      /* VE_FLARE: extra relative wobble in leg 4 */
 #define FLARE_BOIL 0.016       /* VE_FLARE: fuel that boils off per T in leg 4 at r = 2, burning or not (x 4/r^2) */
 #define POD_R 1.60             /* VE_POD: leg 4 goes down to Ilse's pod */
@@ -35,7 +35,8 @@
 /* Leg rings: 1.0 -> 1.5 -> the buoy (near 1.9 or far 2.4; 2.2 with no route effect) -> 1.8 -> (2.2, or Ilse's pod at 1.6) -> 2.6. */
 static const double TARGET[V_LEGS] = {1.5, 2.2, 1.8, 2.2, 2.6};
 
-static const int HEAVY[VS_COUNT] = {0, 0, 0, 0, 1, 1, 0};
+/* The flare, Ilse's call and the static get the screen to themselves: no "leg cleared" banner before or after. */
+static const int HEAVY[VS_COUNT] = {0, 0, 0, 1, 1, 1, 0};
 
 int voyage_options(int scene) { return scene == VS_ROUTE || scene == VS_ILSE ? 2 : 1; }
 int voyage_heavy(int scene) { return scene >= 0 && scene < VS_COUNT && HEAVY[scene]; }
