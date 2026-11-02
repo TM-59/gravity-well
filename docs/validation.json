@@ -1,5 +1,5 @@
 {
-  "checks": 22,
+  "checks": 36,
   "errors": 0,
   "externalRequests": 0,
   "manual": {
@@ -17,7 +17,12 @@
   "screenshots": [
     "before.png",
     "circularized.jpg",
+    "ice-run-bottom.jpg",
+    "ice-run-choice.jpg",
+    "ice-run-ending.jpg",
+    "ice-run.jpg",
     "manual-flight.jpg",
+    "mobile-ice-run.jpg",
     "mobile.jpg",
     "observatory.jpg",
     "transfer.jpg"

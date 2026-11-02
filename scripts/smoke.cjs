@@ -25,6 +25,60 @@ async function ready(page,url) {
   await page.clock.install();
 }
 async function capture(page,name){await page.screenshot({path:`docs/images/${name}.jpg`,type:'jpeg',quality:88,fullPage:true});}
+/* A pilot that only reads the screen's numbers and Ilse's count: Raise/Lower until the far side of the orbit touches the
+ * ring (or her "cut"), coast to the ring (or her "now"), Match until the error is tiny; on the pod's ring, engine off. */
+async function flyIceRun(page,{route,ilse,shots}) {
+  await page.getByRole('button',{name:'Fly the ice run'}).click();
+  await page.selectOption('#rate','4');
+  const order=[];let held=null,phase='transfer',heavyQuiet=0,guard=0,shot=0,leg=-1,tows=0,coast=0,dir=true;
+  const keyFor={raise:'w',lower:'s',match:'m'};
+  const set=async name=>{if(held===name)return;if(held)await page.keyboard.up(keyFor[held]);held=name;if(name)await page.keyboard.down(keyFor[name]);};
+  for(;;) {
+    const v=await observe(page);
+    if(process.env.SMOKE_DEBUG&&guard%50===0) console.log(JSON.stringify({guard,phase,held,scene:v.scene,paused:v.paused,leg:v.leg,t:v.time,r:v.radius,tg:v.target,a:v.a,e:v.e,apo:v.apoRead,peri:v.periRead,cue:v.cue,count:v.count,me:v.matchError,fuel:v.fuel,cmd:v.command,drift:v.drift}));
+    if(++guard>=3000) check(false,'ice run finishes');
+    if(v.scene) {
+      await set(null);
+      if(order[order.length-1]!==v.scene) {
+        order.push(v.scene);
+        if(v.scene==='ilse'||v.scene==='silence') {
+          const quiet=!v.bannerShown&&v.banner===0&&await page.locator('#scene.heavy').isVisible();
+          if(shots&&v.scene==='ilse') await capture(page,'ice-run-bottom');
+          await page.locator('#scene-options button').nth(v.scene==='ilse'?ilse:0).click();
+          await page.clock.runFor(200);
+          const after=await observe(page);
+          if(quiet&&after.loud===v.loud&&!(after.bannerShown&&after.banner===1)) heavyQuiet++;
+          continue;
+        }
+        if(v.scene==='quay') {
+          if(shots) await capture(page,'ice-run-ending');
+          return {order,ending:v.ending,endingText:v.sceneText,heavyQuiet,time:v.time};
+        }
+        if(shots&&v.scene==='route') await capture(page,'ice-run-choice');
+        await page.locator('#scene-options button').nth(v.scene==='route'?route:0).click();
+        phase='transfer';
+        continue;
+      }
+    }
+    if(v.paused&&!v.scene) await page.locator('#pause').click();
+    const out=v.target>v.radius, onRing=Math.abs(v.a-v.target)<0.04*v.target&&v.e<0.04;
+    if(v.leg!==leg||v.tows!==tows) {leg=v.leg;tows=v.tows;phase='transfer';}
+    if(v.drift>0||v.held>0) await set(null);
+    else if(phase==='transfer') {
+      dir=out;
+      const done=v.cue===1||(!v.count&&(dir?v.apoRead>=v.target:v.periRead<=v.target));
+      if(done){phase='coast';coast=0;await set(null);} else await set(dir?'raise':'lower');
+    } else if(phase==='coast') {
+      coast++;
+      if(v.cue===2||Math.abs(v.radius-v.target)<0.02*v.target||(dir?v.radial<-0.01:v.radial>0.01)) {phase='match';await set('match');}
+      else if(coast>20) {phase='transfer';await set(null);}
+      else await set(null);
+    } else if(v.matchError<0.002) {phase=onRing&&v.holdNeed>0?'wait':'transfer';await set(null);}
+    else await set('match');
+    if(shots&&!shot&&v.leg===1&&phase==='coast') {shot=1;await capture(page,'ice-run');}
+    await page.clock.runFor(40);
+  }
+}
 async function run(){
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const origin=`http://127.0.0.1:${server.address().port}`;
@@ -66,6 +120,17 @@ async function run(){
   const reset=await observe(page);
   check(reset.time===0&&reset.dv===0&&reset.paused,'reset clears demo and pauses');
   check(await page.locator('body').evaluate(el=>el.scrollWidth<=innerWidth),'desktop has no overflow');
+  // The Ice Run: fly all five legs with real keys, read only what the screen reads, answer every scene with real clicks.
+  const ice=await flyIceRun(page,{route:1,ilse:0,shots:true});
+  check(ice.order.length===7,'ice run finishes');
+  check(ice.ending===0&&ice.order.join()==='dock,route,beacon,flare,ilse,silence,quay','ice run, turned back: every scene in order');
+  check(ice.heavyQuiet===2,'heavy scenes shown on a dark panel with no banner, before or after');
+  check(/empty pod is still clamped/.test(ice.endingText),'the turned-back ending is shown');
+  const held=await flyIceRun(page,{route:0,ilse:1,shots:false});
+  check(held.ending===1&&/last call cut off/.test(held.endingText),'ice run, held the heading: the other ending');
+  check(held.time<ice.time,'holding the heading arrives on an earlier clock');
+  await page.getByRole('button',{name:'Start again'}).click();
+  check((await observe(page)).time===0&&(await observe(page)).scene==='dock','start again returns to the dock');
   // Narrow viewport + touch-generated Pointer Events. A cancelled touch must not stick.
   const mobile=await context.newPage();
   await mobile.setViewportSize({width:390,height:844});
@@ -83,7 +148,20 @@ async function run(){
   check((await observe(mobile)).dv===dv,'no thrust after touch cancellation');
   await mobile.getByRole('button',{name:'Pause',exact:true}).click();
   check(await mobile.locator('body').evaluate(el=>el.scrollWidth<=innerWidth),'mobile has no horizontal overflow');
-  for(const el of await mobile.locator('.controls button').all()) {
+  await mobile.getByRole('button',{name:'Fly the ice run'}).click();
+  check(await mobile.locator('#scene').isVisible(),'the dock scene opens on a phone');
+  await mobile.evaluate(()=>document.querySelector('.chart').scrollIntoView());await capture(mobile,'mobile-ice-run');
+  for(const el of await mobile.locator('#scene-options button').all()) {
+    const rect=await el.boundingBox();check(rect.height>=44,'scene answer at least 44 px tall');
+  }
+  const sizes=await mobile.locator('#scene-text p').evaluateAll(ps=>ps.map(p=>parseFloat(getComputedStyle(p).fontSize)));
+  check(Math.min(...sizes)>=13,'scene text readable on a phone');
+  await mobile.locator('#scene-options button').first().click();
+  for(const el of await mobile.locator('#voyage-controls button').all()) {
+    const rect=await el.boundingBox();check(rect.width>=44&&rect.height>=44,'ice run control at least 44 px');
+  }
+  await mobile.getByRole('button',{name:'Take control'}).click();
+  for(const el of await mobile.locator('#flight-controls button').all()) {
     const rect=await el.boundingBox();check(rect.width>=44&&rect.height>=44,'touch target at least 44 px');
   }
   await mobile.evaluate(()=>scrollTo(0,0));await capture(mobile,'mobile');

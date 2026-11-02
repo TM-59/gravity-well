@@ -7,3 +7,6 @@ node_modules/
 __pycache__/
 *.pyc
 .venv/
+test_voyage
+story_bench
+.story-check/
