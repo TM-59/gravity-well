@@ -1,7 +1,7 @@
 {
   "version": 1,
   "arc": "Man in a hole: the last ice leaves a dock that is running out (0, quiet), a choice of buoys while the Quay rations water (-1), the buoy is lit and the first lamp goes on (+2, a false peak), the flare comes three weeks early (-2), Ilse will not leave her dock (-3), her channel goes to static (-3, the bottom at 0.83), Lamp Quay and its second lamp (+1, bittersweet).",
-  "note": "Scenes open in src/voyage.c at fixed progress points (the start of the run and the end of each of the five legs); the words are in web/app.js. The integrator in src/orbit.c is unchanged; story beats change only the fuel in the tank, the target rings, how much the apsis readout wobbles, the flare's boil-off and what a tow costs. The actual order per seed is in play-order.json, story numbers on/off and per choice path in ablation.json, per-leg crises and failures in tension.json, all written by make story. tests/test_voyage.c checks the order, every [mech] number, the [quiet] heavy scenes and both choices; make test re-runs bench rows and requires them verbatim. Emotion values were re-scored on 2026-11-02 by a reviewer who is not the author (dock 0, flare -2, silence -3, quay +1).",
+  "note": "Scenes open in src/voyage.c at fixed progress points (the start of the run and the end of each of the five legs); the words are in web/app.js. The integrator in src/orbit.c is unchanged; story beats change only the fuel in the tank, the target rings, how much the apsis readout wobbles, the flare's boil-off and what a tow costs. The actual order per seed is in play-order.json, story numbers on/off and per choice path in ablation.json, per-leg crises and failures in tension.json, all written by make story. tests/test_voyage.c checks the order, every [mech] number, the [quiet] heavy scenes (flare, ilse, silence) and both choices; ablation rows carry seconds, red and tows; make test re-runs bench rows and requires them verbatim. Emotion values were re-scored on 2026-11-02 by a reviewer who is not the author (dock 0, flare -2, silence -3, quay +1).",
   "characters": [
     {"id": "ilse", "want": "keep the inner dock's pumps turning until the last ice is out", "need": "to let someone else carry it the rest of the way", "start": "will not leave her dock; counts every burn for the pilot", "end": "stays with the dock in the flare; her count goes to static and the pilot counts alone"},
     {"id": "pell", "want": "every tank home and a lamp lit for each one", "need": "to accept that not everyone comes back", "start": "promises a lamp for every tank that comes home", "end": "lights the second lamp for someone who is not coming"}
@@ -14,12 +14,14 @@
      "valence": -1, "intensity": 2, "emotion": "fear", "tags": ["choice", "cost"], "setup": ["s-cups"],
      "choice": {"options": 2, "changes": ["beacon"], "labels": ["Make for Lark, the near buoy (short climb)", "Climb to Wick, the far buoy (long climb, fuel sent down)"]},
      "mechanism": {"state": "route", "test": "[mech] route"}, "evidence": "Close is quick. Far is fuel."},
-    {"id": "beacon", "chapter": 2, "summary": "The buoy is lit and the tug is a real blip on the Quay's board. Pell lights the first lamp, one for every tank that comes home. What is left in the buoy's cache goes into the tank.",
+    {"id": "beacon", "chapter": 2, "summary": "The buoy is lit and the tug is a real blip on the Quay's board. Pell lights the first lamp, one for every tank that comes home. What is left in the buoy's cache goes into the tank, and with it the flare boils fewer tanks dry (fewer drone drifts, less time in the red).",
      "valence": 2, "intensity": 2, "emotion": "joy", "tags": ["reward", "peak"], "setup": ["s-lamp"],
      "mechanism": {"state": "VE_CACHE", "test": "[mech] beacon"}, "evidence": "I'm lighting the first lamp on the Quay."},
     {"id": "flare", "chapter": 3, "summary": "The flare season comes three weeks early. Pell shouts; Ilse sends the tug below the front and warns that when it arrives the tank will boil off and the readout will jump.",
      "valence": -2, "intensity": 3, "emotion": "anger", "tags": ["punishment", "twist"],
-     "mechanism": {"state": "VE_FLARE", "test": "[mech] flare"}, "evidence": "They told us three weeks!"},
+     "mechanism": {"state": "VE_FLARE", "test": "[mech] flare"},
+     "presentation": {"quiet": true, "test": "[quiet] flare"},
+     "evidence": "They told us three weeks!"},
     {"id": "ilse", "chapter": 4, "summary": "The dock is inside the flare. Ilse will not leave: the pumps need a hand. She has sent the reserve pod down to a lower ring. Pell begs; Ilse answers 'Count the cups.' Turn back for the pod (a detour and a wait) or hold the heading.",
      "valence": -3, "intensity": 3, "emotion": "sorrow", "tags": ["loss", "choice"], "irreversible": true, "payoff": ["s-pod", "s-cups"],
      "choice": {"options": 2, "changes": ["silence", "quay"], "labels": ["Turn back for her pod (a detour, then a wait while it pumps)", "Hold the heading for Lamp Quay"]},

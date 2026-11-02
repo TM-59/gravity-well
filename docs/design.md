@@ -20,7 +20,7 @@
 - 観測画面の上の案内(`#welcome`)は読み込み直後だけ出る。いずれかの航行を選ぶか Resume で消える。
 - モード: `reset(0)` 手動航行、`reset(1)` Hohmann 実演、`reset(2)` The Ice Run(`body[data-mode]` が `flight` / `voyage`)。
 - The Ice Run の場面は C の `VS_DOCK`〜`VS_QUAY`(0〜6)。場面が開くと飛行は止まり、`#scene` に台詞と選択肢を出す。
-  重い場面(ilse・silence)は暗い面で、区間完了の帯を出さない。選択肢は場面の下端に固定する。
+  重い場面(flare・ilse・silence)は暗い面で、区間完了の帯を出さない。選択肢は場面の下端に固定する。
 - 帯(`#banner`)は C の `VB_CLEAR`・`VB_TOW`・`VB_MISS`。場面が出ている間は隠す。
 
 ## データ
@@ -57,4 +57,3 @@
 
 - 船・月・星のラベルは位置が近いと重なる。
 - 実スマートフォン(Safari)・実 GPU・人間の初見試遊は未検証。
-- 物語の既知の不具合: flare の場面の直後に区間完了の帯が出る(#13)、beacon の燃料の効き目が赤ゲージの時間にしか出ない(#14)。

@@ -21,7 +21,7 @@ enum {
     VS_DOCK,     /* Ilse gives what fuel the dock can spare and says she will call the burns */
     VS_ROUTE,    /* choice: the near buoy (a short climb) or the far buoy (a long climb, spare fuel sent down) */
     VS_BEACON,   /* the buoy is lit; Pell lights the first lamp; what is left in the buoy's cache */
-    VS_FLARE,    /* the flare season comes early: the readout wobbles */
+    VS_FLARE,    /* the flare season comes early: the readout wobbles (heavy: shown with no banner) */
     VS_ILSE,     /* Ilse is not coming; choice: turn back for her fuel pod, or hold the heading */
     VS_SILENCE,  /* her channel goes to static; nobody calls the burns any more */
     VS_QUAY,     /* Lamp Quay; ending */

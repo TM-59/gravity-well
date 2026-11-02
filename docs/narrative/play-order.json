@@ -3,17 +3,17 @@
   "generator": "tests/story_bench.c (make story)",
   "note": "Scenes open at fixed progress points: the start of the run and the end of a leg. route 0 = the near buoy, 1 = the far buoy; ilse 0 = turn back for her pod, 1 = hold the heading. quiet lists the heavy scenes shown with no 'leg cleared' banner raised before the next frame of flight. Do not edit by hand.",
   "seeds": [
-    {"seed": "0", "choices": {"route": 0, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["ilse", "silence"]},
-    {"seed": "1", "choices": {"route": 1, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["ilse", "silence"]},
-    {"seed": "2", "choices": {"route": 0, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["ilse", "silence"]},
-    {"seed": "3", "choices": {"route": 1, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["ilse", "silence"]},
-    {"seed": "4", "choices": {"route": 0, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["ilse", "silence"]},
-    {"seed": "5", "choices": {"route": 1, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["ilse", "silence"]},
-    {"seed": "6", "choices": {"route": 0, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["ilse", "silence"]},
-    {"seed": "7", "choices": {"route": 1, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["ilse", "silence"]},
-    {"seed": "8", "choices": {"route": 0, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["ilse", "silence"]},
-    {"seed": "9", "choices": {"route": 1, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["ilse", "silence"]},
-    {"seed": "10", "choices": {"route": 0, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["ilse", "silence"]},
-    {"seed": "11", "choices": {"route": 1, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["ilse", "silence"]}
+    {"seed": "0", "choices": {"route": 0, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "1", "choices": {"route": 1, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "2", "choices": {"route": 0, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "3", "choices": {"route": 1, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "4", "choices": {"route": 0, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "5", "choices": {"route": 1, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "6", "choices": {"route": 0, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "7", "choices": {"route": 1, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "8", "choices": {"route": 0, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "9", "choices": {"route": 1, "ilse": 0}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-turned", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "10", "choices": {"route": 0, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["flare", "ilse", "silence"]},
+    {"seed": "11", "choices": {"route": 1, "ilse": 1}, "order": ["dock", "route", "beacon", "flare", "ilse", "silence", "quay"], "won": true, "ending": "end-held", "quiet": ["flare", "ilse", "silence"]}
   ]
 }

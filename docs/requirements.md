@@ -25,7 +25,7 @@
 
 - 軌道・保存則・GIF 往復・手動航行の一致・Hohmann の2噴射(第1噴射 Δv=0.154706、Web 実演の最終半径 2.000127)。
 - The Ice Run の場面順 dock → route → beacon → flare → ilse → silence → quay(12 seed)と両方の結末に届くこと。
-- 物語の数値(`[mech]`)、重い場面の静けさ(`[quiet]` ilse・silence)、2つの選択の得と損(`[choice]`)。
+- 物語の数値(`[mech]`)、重い場面の静けさ(`[quiet]` flare・ilse・silence)、2つの選択の得と損(`[choice]`)。
 - `docs/narrative/` の行が Debian 13 の再実行とバイト一致すること。
 
 ### 遊べる門(iPhone 相当の縦 375×812・横 812×375・DPR 3・タッチのみ)

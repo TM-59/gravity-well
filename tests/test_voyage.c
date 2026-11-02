@@ -51,6 +51,36 @@ static char *slurp(const char *path)
     return buf;
 }
 
+/* Two-sided sign test over the seeds: p for the larger of the two one-way counts. */
+static double sign_p(int k, int n)
+{
+    double tail = 0.0;
+    for (int x = k; x <= n; x++) {
+        double comb = 1.0;
+        for (int y = 0; y < x; y++) comb = comb * (n - y) / (y + 1);
+        tail += comb;
+    }
+    return fmin(1.0, 2.0 * tail / pow(2.0, n));
+}
+
+/* Reads one beat's on/off rows from ablation.json (seconds, red, tows per seed) into v[arm][seed][metric]. */
+static void read_beat(const char *text, const char *beat, double v[2][ABLATION_SEEDS][3])
+{
+    char head[64];
+    snprintf(head, sizeof head, "\"%s\": {", beat);
+    const char *at = strstr(strstr(text, "\"beats\": {"), head);
+    assert(at);
+    for (int arm = 0; arm < 2; arm++) {
+        at = strstr(at, arm ? "\"off\": [" : "\"on\": [");
+        assert(at);
+        for (int i = 0; i < ABLATION_SEEDS; i++) {
+            at = strstr(at, "\"seconds\": ");
+            assert(at && sscanf(at, "\"seconds\": %lf, \"red\": %lf, \"tows\": %lf", &v[arm][i][0], &v[arm][i][1], &v[arm][i][2]) == 3);
+            at++;
+        }
+    }
+}
+
 /* Reads one choice's two paths from ablation.json; checks each path wins one outcome and neither dominates. */
 static void check_choice(const char *text, const char *head)
 {
@@ -118,12 +148,18 @@ int main(void)
         for (const char *c = text; (c = strstr(c, "\"seed\": ")); c++) seeds++;
         for (const char *c = text; (c = strstr(c, want)); c++) orders++;
         assert(seeds >= 8 && orders == seeds);
-        assert(strstr(text, "\"ending\": \"end-turned\", \"quiet\": [\"ilse\", \"silence\"]"));
-        assert(strstr(text, "\"ending\": \"end-held\", \"quiet\": [\"ilse\", \"silence\"]"));
+        assert(strstr(text, "\"ending\": \"end-turned\", \"quiet\": [\"flare\", \"ilse\", \"silence\"]"));
+        assert(strstr(text, "\"ending\": \"end-held\", \"quiet\": [\"flare\", \"ilse\", \"silence\"]"));
+        /* No seed records a heavy scene that was not quiet. */
+        for (const char *c = text; (c = strstr(c, "\"quiet\": [")); c++)
+        {
+            static const char all[] = "\"quiet\": [\"flare\", \"ilse\", \"silence\"]";
+            assert(strncmp(c, all, sizeof all - 1) == 0);
+        }
         printf("[order] %d seeds: dock .. quay in the designed order; both endings reached\n", seeds);
         RunResult r;
         run_voyage(play_key(3), VE_ALL, 1, 0, &r);
-        assert(r.completed && r.order_len == VS_COUNT && r.ending == 0 && r.quiet[VS_ILSE] && r.quiet[VS_SILENCE]);
+        assert(r.completed && r.order_len == VS_COUNT && r.ending == 0 && r.quiet[VS_FLARE] && r.quiet[VS_ILSE] && r.quiet[VS_SILENCE]);
         for (int k = 0; k < VS_COUNT; k++) assert(r.order[k] == DESIGN[k]);
     }
 
@@ -155,16 +191,52 @@ int main(void)
         puts("[mech] route: near ring 1.9, no fuel; far ring 2.4 and +0.30 fuel sent down");
     }
 
-    /* [mech] beacon: what is left in the buoy's cache, +0.22, goes into the tank; then the flare scene opens. */
+    /* [mech] beacon: what is left in the buoy's cache, +0.22, goes into the tank; then the flare scene opens.
+     * [quiet] flare: the beacon is a reward and keeps its "leg cleared" banner, but the flare that follows gets the screen
+     * to itself: the banner is gone when the flare opens and stays gone after it closes (#13). */
     {
         Voyage a, b; Pilot p, q;
         start(&a, &p, VE_ALL); start(&b, &q, VE_ALL & ~VE_CACHE);
         drive(&a, &p, VS_BEACON, 1, 1); drive(&b, &q, VS_BEACON, 1, 1);
-        assert(a.banner == VB_CLEAR);
+        assert(a.banner == VB_CLEAR && a.banner_left > 0.0 && !voyage_heavy(VS_BEACON));
         double fa = a.fuel, fb = b.fuel;
+        int loud = a.loud;
         assert(voyage_answer(&a, 0) == 0 && voyage_answer(&b, 0) == 0);
         assert(close_to(a.fuel - fa, 0.22) && close_to(b.fuel, fb) && a.scene == VS_FLARE && b.scene == VS_FLARE);
+        assert(voyage_heavy(VS_FLARE) && a.banner == VB_NONE && a.banner_left == 0.0);
+        assert(voyage_answer(&a, 0) == 0);
+        voyage_tick(&a, 1, pilot_command(&p, &a));
+        assert(a.loud == loud && a.banner != VB_CLEAR);
         puts("[mech] beacon: +0.22 fuel from the cache");
+        puts("[quiet] flare: shown with no cleared banner, before or after");
+    }
+
+    /* [mech] beacon in the bench (#14): with only the cache removed, the flare boils more tanks dry, so the cache shows in two
+     * outcomes, not only in the fuel it adds: fewer tows (drone drifts) and less time in the red, both on the same side in
+     * most seeds (sign test p <= 0.05, relative difference >= 5 %). The mission clock is reported, not required. */
+    {
+        static double v[2][ABLATION_SEEDS][3];
+        read_beat(slurp("docs/narrative/ablation.json"), "beacon", v);
+        static const char *const name[3] = {"seconds", "red", "tows"};
+        int hits = 0;
+        for (int m = 0; m < 3; m++) {
+            int worse = 0, better = 0;
+            double on = 0.0, off = 0.0;
+            for (int i = 0; i < ABLATION_SEEDS; i++) {
+                worse += v[1][i][m] > v[0][i][m];
+                better += v[1][i][m] < v[0][i][m];
+                on += v[0][i][m];
+                off += v[1][i][m];
+            }
+            double p = sign_p(worse > better ? worse : better, ABLATION_SEEDS);
+            double rel = fabs(off - on) / fmax(fabs(on), ABLATION_SEEDS);
+            int ok = worse > better && p <= 0.05 && rel >= 0.05;
+            if (m > 0) assert(ok);
+            hits += ok;
+            printf("[mech] beacon off - on, %s: higher in %d/%d seeds, lower in %d, mean %+.2f, p %.4f%s\n", name[m], worse,
+                   ABLATION_SEEDS, better, (off - on) / ABLATION_SEEDS, p, ok ? "" : " (not required)");
+        }
+        assert(hits >= 2);
     }
 
     /* [mech] flare: in leg 4 only, fuel boils off at 0.016 x 4/r^2 per T, burning or not, and the readout wobbles more. */

@@ -41,7 +41,7 @@ async function flyIceRun(page,{route,ilse,shots}) {
       await set(null);
       if(order[order.length-1]!==v.scene) {
         order.push(v.scene);
-        if(v.scene==='ilse'||v.scene==='silence') {
+        if(v.scene==='flare'||v.scene==='ilse'||v.scene==='silence') {
           const quiet=!v.bannerShown&&v.banner===0&&await page.locator('#scene.heavy').isVisible();
           if(shots&&v.scene==='ilse') await capture(page,'ice-run-bottom');
           await page.locator('#scene-options button').nth(v.scene==='ilse'?ilse:0).click();
@@ -124,7 +124,7 @@ async function run(){
   const ice=await flyIceRun(page,{route:1,ilse:0,shots:true});
   check(ice.order.length===7,'ice run finishes');
   check(ice.ending===0&&ice.order.join()==='dock,route,beacon,flare,ilse,silence,quay','ice run, turned back: every scene in order');
-  check(ice.heavyQuiet===2,'heavy scenes shown on a dark panel with no banner, before or after');
+  check(ice.heavyQuiet===3,'heavy scenes shown on a dark panel with no banner, before or after');
   check(/empty pod is still clamped/.test(ice.endingText),'the turned-back ending is shown');
   const held=await flyIceRun(page,{route:0,ilse:1,shots:false});
   check(held.ending===1&&/last call cut off/.test(held.endingText),'ice run, held the heading: the other ending');

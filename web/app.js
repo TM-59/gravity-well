@@ -38,8 +38,9 @@ const SCENES = [
     ['Pell', "I see you! You're on the board, Wren. A real blip, not a guess!"],
     ['Pell', "I'm lighting the first lamp on the Quay. One for every tank that comes home. Two more hops and yours is the second."],
     ['Ilse', "Take what's in the buoy's cache. Don't thank it."]],
+    note: 'The cache goes into your tank. With it, the flare is less likely to boil you dry and leave you drifting for a drone.',
     options: ['Take the cache aboard']},
-  {id: 'flare', title: 'Three weeks early', lines: [
+  {id: 'flare', title: 'Three weeks early', heavy: true, lines: [
     ['Ilse', 'Wren. Look sunward.'],
     ['Pell', "That isn't a sunrise. They said three weeks. They told us three weeks!"],
     ['Ilse', "Shouting won't cool it. Drop down to the ring at one point eight while the front is still coming. When it reaches us your tank will boil off and the readout will jump. Don't trust a number that won't sit still."]],
