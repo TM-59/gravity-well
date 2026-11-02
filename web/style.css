@@ -4,3 +4,24 @@
 /* Let the measured plot fill the height of the adjacent data panels. */
 .chart{display:flex;flex-direction:column}.plot{flex:1;min-height:350px}
 @media(max-width:720px){.plot{flex:none;min-height:340px}}
+/* The Ice Run: scenes, banner, fuel gauge, voyage controls. */
+.voyage-only{display:none}body[data-mode=voyage] .voyage-only{display:inline}body[data-mode=voyage] .flight-only{display:none}
+.target-key{color:#9fe0a8}.predicted-key{color:var(--cyan)}
+#banner{position:absolute;left:50%;top:44px;transform:translateX(-50%);font-size:12px;letter-spacing:1.6px;padding:6px 12px;border-radius:3px;border:1px solid #6f9a74;background:#0d1d16ee;color:#bfe9c4;white-space:nowrap}
+#banner[data-kind=fail]{border-color:#a87760;background:#22140fee;color:#ffcca9}
+#scene{position:absolute;inset:0;overflow-y:auto;padding:22px 26px;background:#0c1720f2;border-top:1px solid var(--line)}
+#scene h3{margin:0 0 12px;font-size:18px;font-weight:500;color:var(--amber)}
+#scene-text p{margin:0 0 10px;font-size:14px;line-height:1.55;max-width:62ch;color:#e6e1d6}
+#scene-text b{color:var(--cyan);font-weight:600;margin-right:4px}#scene-text .narration{color:var(--muted);font-style:italic}
+#scene-text .note{color:var(--muted);font-size:13px;border-left:2px solid var(--line);padding-left:10px}
+#scene-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}#scene-options button{font-size:14px;text-align:left}
+#scene-options .primary{background:#d2af83;border-color:#d2af83;color:#111b23;font-weight:650}
+/* Heavy scenes: a dark, still panel. No banner, no colour of success. */
+#scene.heavy{background:#05080bf7}#scene.heavy h3{color:#b9c2c9;font-weight:400;letter-spacing:.5px}
+#scene.heavy #scene-text b{color:#b9c2c9}#scene.heavy #scene-options .primary{background:#1f2a31;border-color:#4b5c69;color:var(--text);font-weight:500}
+#scene.ending{background:#0c1720f7}
+#fuel-row{position:relative}#fuel-row[data-red=true] dd,#fuel-row[data-red=true] dt{color:#ffb38a}
+.fuel-gauge{position:absolute;left:0;right:0;bottom:-1px;height:3px;background:#ffffff10}
+#fuel-bar{display:block;height:100%;width:50%;background:var(--cyan)}#fuel-row[data-red=true] #fuel-bar{background:#e07d52}
+@media(max-width:720px){#scene{padding:16px}#scene-text p{font-size:14px}#banner{font-size:11px;white-space:normal;max-width:90%}}
+.controls[hidden],#scene[hidden],#banner[hidden]{display:none}#scene{z-index:2}

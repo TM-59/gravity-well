@@ -6,7 +6,7 @@ EMCC    ?= emcc
 PYTHON  ?= python3
 NODE    ?= node
 
-.PHONY: all test bench web play smoke plots clean
+.PHONY: all test bench story story-check web play smoke plots clean
 all: gravity-well
 
 gravity-well: $(SRC) src/main.c
@@ -21,10 +21,37 @@ test_gif: src/gif.c tests/test_gif.c
 test_flight: src/orbit.c src/flight.c tests/test_flight.c src/flight.h src/orbit.h
 	$(CC) $(CFLAGS) -o $@ $(filter %.c,$^) $(LDLIBS)
 
-test: test_orbit test_gif test_flight
+VOYAGE  := src/orbit.c src/voyage.c
+VOYAGE_H := src/orbit.h src/voyage.h tests/voyage_policy.h tests/voyage_run.h
+
+test_voyage: $(VOYAGE) tests/test_voyage.c $(VOYAGE_H)
+	$(CC) $(CFLAGS) -o $@ $(VOYAGE) tests/test_voyage.c $(LDLIBS)
+
+story_bench: $(VOYAGE) tests/story_bench.c $(VOYAGE_H)
+	$(CC) $(CFLAGS) -o $@ $(VOYAGE) tests/story_bench.c $(LDLIBS)
+
+# The story rows are compared byte for byte; generate and check them with the
+# Debian 13 toolchain of the Dockerfile so libm rounds the same way everywhere.
+test: test_orbit test_gif test_flight test_voyage story_bench
 	./test_orbit
 	./test_gif
 	./test_flight
+	./test_voyage
+	./story_bench --check docs/narrative
+
+# Rewrites docs/narrative/{play-order,ablation,tension}.json.
+story: story_bench
+	mkdir -p docs/narrative
+	./story_bench docs/narrative
+
+# Regenerates every row into a scratch directory and compares the three files byte for byte.
+story-check: story_bench
+	rm -rf .story-check && mkdir .story-check
+	./story_bench .story-check
+	cmp .story-check/play-order.json docs/narrative/play-order.json
+	cmp .story-check/ablation.json docs/narrative/ablation.json
+	cmp .story-check/tension.json docs/narrative/tension.json
+	rm -rf .story-check
 
 bench: test_flight
 	./test_flight --bench
@@ -35,9 +62,9 @@ web: dist/orbit.js
 	cp assets/art/* dist/art/
 	$(PYTHON) scripts/check-size.py
 
-dist/orbit.js: src/orbit.c src/orbit.h src/flight.c src/flight.h
+dist/orbit.js: src/orbit.c src/orbit.h src/flight.c src/flight.h src/voyage.c src/voyage.h src/voyage_web.c
 	mkdir -p dist
-	$(EMCC) -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror src/orbit.c src/flight.c --no-entry -sMODULARIZE -sEXPORT_NAME=createOrbit -sENVIRONMENT=web -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_flight_reset","_flight_tick","_flight_value"]' -o $@
+	$(EMCC) -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror src/orbit.c src/flight.c src/voyage.c src/voyage_web.c --no-entry -sMODULARIZE -sEXPORT_NAME=createOrbit -sENVIRONMENT=web -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_flight_reset","_flight_tick","_flight_value","_vw_reset","_vw_tick","_vw_answer","_vw_value"]' -o $@
 
 play: web
 	$(PYTHON) -m http.server 4216 --bind localhost --directory dist
@@ -53,5 +80,5 @@ plots: gravity-well
 	head -c6 docs/demo.gif | grep -q GIF89a
 
 clean:
-	rm -f gravity-well test_orbit test_gif test_flight
+	rm -f gravity-well test_orbit test_gif test_flight test_voyage story_bench
 	rm -rf dist

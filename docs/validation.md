@@ -1,3 +1,20 @@
+# 検証記録
+
+## M5 The Ice Run(2026-11-02 JST、`m5/ice-run`)
+
+| コマンド | 実測と判定 |
+|---|---|
+| `make test`(Dockerfile の Debian 13、gcc 14.2) | 既存の軌道・GIF・航行は変更前と同値(Δv₁=0.154706・最終半径2.000127)。追加の `test_voyage` は場面順 12 seed・`[mech]` 6 件・`[quiet]` 2 件・選択 2 件の符号検定。`story_bench --check` は bench の 8 行を再実行してファイルと一字一句一致、全 396 通しの種の重複 0 |
+| `make story-check` | 3 ファイルを作り直してバイト一致 |
+| `make plots` | `docs/run.csv`・SVG 3 枚・`demo.gif` の差分 0(物理と従来出力は不変) |
+| `docker build .`(CI と同じ) | `make test` と `make plots` が成功 |
+| `make web` | WASM 17,055 B、7 ファイル合計 343,007 B |
+| `make smoke` | 36 項目成功、page/console error 0、外部通信 0。The Ice Run を実キーで2回(遠い灯台・戻る / 近い灯台・向かう)航行し、7 場面の順・両方の結末・重い2場面で帯なしを確認。390px で場面の選択肢 44px 以上 |
+
+物語の点(`narrative-score.py`)は推定 0 → ビート表と bench の 3 ファイルで最悪 seed 93・中央値 93(目標 25)。
+感情値は作者の自己採点で、別の担当の見直しは未。
+人の初見試遊・実スマートフォン・実 GPU は未検証。
+
 # M4 検証記録
 
 検証日: 2026-10-25 JST。対象: `m4/orbital-observatory`。
