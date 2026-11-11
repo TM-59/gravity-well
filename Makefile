@@ -6,7 +6,7 @@ EMCC    ?= emcc
 PYTHON  ?= python3
 NODE    ?= node
 
-.PHONY: all test bench story story-check web play smoke plots clean
+.PHONY: all test bench story story-check web play smoke plots clean theory-figs theory-check
 all: gravity-well
 
 gravity-well: $(SRC) src/main.c
@@ -79,6 +79,18 @@ plots: gravity-well
 	./gravity-well --gif docs/demo.gif
 	head -c6 docs/demo.gif | grep -q GIF89a
 
+# Regenerates the plotted figures and the measured-values table of docs/theory (one command).
+theory_figs: $(VOYAGE) src/flight.c src/svg.c tests/theory_figs.c $(VOYAGE_H) src/flight.h src/svg.h
+	$(CC) $(CFLAGS) -o $@ $(VOYAGE) src/flight.c src/svg.c tests/theory_figs.c $(LDLIBS)
+
+theory-figs: theory_figs
+	mkdir -p docs/theory/figures
+	./theory_figs docs/theory/figures
+
+# Fails when a statement of docs/theory has no figure, a link is broken, or a referenced function or test is gone.
+theory-check:
+	$(PYTHON) scripts/theory-check.py
+
 clean:
-	rm -f gravity-well test_orbit test_gif test_flight test_voyage story_bench
+	rm -f gravity-well test_orbit test_gif test_flight test_voyage story_bench theory_figs
 	rm -rf dist

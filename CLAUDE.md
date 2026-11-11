@@ -13,6 +13,9 @@ C11 + libm の軌道力学シミュレーター。既存の端末表示・GIF・
 - 保存機能・サーバー API は無い。第三者画像・音声・フォントは持ち込まない。
 - 検証: `make test` / `make bench` / `make story-check` / `make plots` / `make web` / `make smoke`。
   Web は Emscripten、撮影は Playwright を使用。Python は 3.14。`make -j` は最大4。
+- 理論の手引きは `docs/theory/`。`make theory-figs` が図と実測値の表を `tests/theory_figs.c` から再生成し、`make theory-check` が
+  対応表(文 → 頁 → 図 → 関数 → テスト)の欠け・リンク切れ・消えた関数名・未掲載の公開関数で落ちる。法則・規則を足したら同じ PR で頁と図と表を足す。
+  README の「22 statements」は表の行数と合わせる。
 - CI は PR の軽量単体テストだけ(`docker build .` の中の `make test` と `make plots`)。ブラウザー撮影・Web ビルドはローカルで行う。
 - ゲーム本体に乱数は無い。bench の自動操縦の種は `tests/voyage_policy.h` の subSeed(splitmix64)で作る。
 - 実画面は `docs/images/`。原画は `assets/art/`、採否・生成指示は `docs/art-direction.md`。
