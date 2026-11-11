@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="720" height="400" font-family="sans-serif" font-size="12">
+<rect width="720" height="400" fill="#ffffff"/>
+<text x="70" y="26" font-size="16" font-weight="bold" fill="#222">The same delta-v spread over a longer burn reaches less far</text>
+<line x1="70.0" y1="44" x2="70.0" y2="344" stroke="#e3e3e3"/>
+<line x1="70" y1="344.0" x2="700" y2="344.0" stroke="#e3e3e3"/>
+<text x="70.0" y="362" text-anchor="middle" fill="#444">0.04</text>
+<text x="62" y="348.0" text-anchor="end" fill="#444">1.52</text>
+<line x1="196.0" y1="44" x2="196.0" y2="344" stroke="#e3e3e3"/>
+<line x1="70" y1="284.0" x2="700" y2="284.0" stroke="#e3e3e3"/>
+<text x="196.0" y="362" text-anchor="middle" fill="#444">1.24</text>
+<text x="62" y="288.0" text-anchor="end" fill="#444">1.62</text>
+<line x1="322.0" y1="44" x2="322.0" y2="344" stroke="#e3e3e3"/>
+<line x1="70" y1="224.0" x2="700" y2="224.0" stroke="#e3e3e3"/>
+<text x="322.0" y="362" text-anchor="middle" fill="#444">2.44</text>
+<text x="62" y="228.0" text-anchor="end" fill="#444">1.72</text>
+<line x1="448.0" y1="44" x2="448.0" y2="344" stroke="#e3e3e3"/>
+<line x1="70" y1="164.0" x2="700" y2="164.0" stroke="#e3e3e3"/>
+<text x="448.0" y="362" text-anchor="middle" fill="#444">3.64</text>
+<text x="62" y="168.0" text-anchor="end" fill="#444">1.82</text>
+<line x1="574.0" y1="44" x2="574.0" y2="344" stroke="#e3e3e3"/>
+<line x1="70" y1="104.0" x2="700" y2="104.0" stroke="#e3e3e3"/>
+<text x="574.0" y="362" text-anchor="middle" fill="#444">4.84</text>
+<text x="62" y="108.0" text-anchor="end" fill="#444">1.92</text>
+<line x1="700.0" y1="44" x2="700.0" y2="344" stroke="#e3e3e3"/>
+<line x1="70" y1="44.0" x2="700" y2="44.0" stroke="#e3e3e3"/>
+<text x="700.0" y="362" text-anchor="middle" fill="#444">6.04</text>
+<text x="62" y="48.0" text-anchor="end" fill="#444">2.02</text>
+<rect x="70" y="44" width="630" height="300" fill="none" stroke="#888"/>
+<text x="385" y="388" text-anchor="middle" fill="#222">length of the burn [T]</text>
+<text transform="translate(16 194) rotate(-90)" text-anchor="middle" fill="#222">apoapsis [L]</text>
+<polyline fill="none" stroke="#1f77b4" stroke-width="2" points="70.0,57.7 85.8,58.3 101.5,59.7 117.2,61.8 133.0,64.7 148.8,68.3 164.5,72.6 180.2,77.4 196.0,82.8 211.8,88.7 227.5,95.0 243.2,101.7 259.0,108.7 274.8,116.0 290.5,123.6 306.2,131.4 322.0,139.3 337.8,147.4 353.5,155.7 369.2,164.0 385.0,172.3 400.8,180.8 416.5,189.2 432.2,197.7 448.0,206.1 463.8,214.5 479.5,222.9 495.2,231.3 511.0,239.5 526.8,247.8 542.5,255.9 558.2,263.9 574.0,271.9 589.8,279.7 605.5,287.4 621.2,295.0 637.0,302.4 652.8,309.7 668.5,316.8 684.2,323.7 700.0,330.4 "/>
+<rect x="78" y="52" width="12" height="12" fill="#1f77b4"/><text x="96" y="63" fill="#222">apoapsis reached</text>
+<polyline fill="none" stroke="#d62728" stroke-width="2" points="70.0,57.6 85.8,57.6 101.5,57.6 117.2,57.6 133.0,57.6 148.8,57.6 164.5,57.6 180.2,57.6 196.0,57.6 211.8,57.6 227.5,57.6 243.2,57.6 259.0,57.6 274.8,57.6 290.5,57.6 306.2,57.6 322.0,57.6 337.8,57.6 353.5,57.6 369.2,57.6 385.0,57.6 400.8,57.6 416.5,57.6 432.2,57.6 448.0,57.6 463.8,57.6 479.5,57.6 495.2,57.6 511.0,57.6 526.8,57.6 542.5,57.6 558.2,57.6 574.0,57.6 589.8,57.6 605.5,57.6 621.2,57.6 637.0,57.6 652.8,57.6 668.5,57.6 684.2,57.6 700.0,57.6 "/>
+<rect x="228" y="52" width="12" height="12" fill="#d62728"/><text x="246" y="63" fill="#222">impulse: 2</text>
+</svg>

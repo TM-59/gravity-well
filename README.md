@@ -4,6 +4,8 @@
 船首を向けても進路はすぐに変わらない。短い噴射が軌道を変え、その後は慣性と重力で進む。
 velocity-Verlet 積分による同じ C の計算を、端末とブラウザーの両方で実行できる。
 
+**理論の手引き / Theory handbook**: [docs/theory/](docs/theory/README.md) — 22 statements(重力・ケプラーの法則・vis-viva・Hohmann 遷移・velocity Verlet の性質・The Ice Run の規則)を、式・前提・導出・実装箇所・検査と図つきで説明する。図と実測値は `make theory-figs` で再生成、`make theory-check` で対応表を検査。
+
 ![ブラウザー観測画面。独自原画、目盛り、速度矢印、無次元の物理量を表示](docs/images/observatory.jpg)
 
 ## 起動
@@ -20,6 +22,8 @@ make bench
 make story                    # The Ice Run の bench(docs/narrative の3ファイル)を再生成
 make story-check              # 全行を作り直してバイト一致を確認
 make plots                    # docs の CSV / SVG / GIF を再生成
+make theory-figs              # docs/theory の図と実測値の表を再生成
+make theory-check             # 手引きの対応表(文 → 頁 → 図 → 関数 → テスト)を検査
 ```
 
 ブラウザー版は Emscripten の `emcc` と Python 3.14 を PATH に置いて実行する。
