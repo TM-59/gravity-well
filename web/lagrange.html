@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore five Lagrange points, Jacobi conservation and zero-velocity curves in the circular restricted three-body problem, computed in C and WebAssembly.">
+  <title>Gravity Well — Lagrange laboratory</title>
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="lagrange.css">
+  <script defer src="cr3bp.js"></script><script defer src="lagrange.js"></script>
+</head>
+<body>
+  <header><a href="./" class="back">← Orbital observatory</a><span>GRAVITY WELL / LAB 02</span></header>
+  <main>
+    <div class="intro"><p class="eyebrow">THE ROTATING FRAME</p><h1>Five places to keep pace.</h1><p>Two orbiting masses, one weightless traveller. Rotate with the pair and their five equilibrium points stand still.</p></div>
+    <section class="lab" aria-label="Lagrange laboratory">
+      <div class="plots">
+        <div class="plot-title"><h2>Zero-velocity map</h2><span id="frame">Barycentric · separation 1 L</span></div>
+        <canvas id="map" role="img" aria-label="Rotating frame: L1 to L5, the two masses, the traveller and the zero-velocity boundary"></canvas>
+        <div class="legend"><span class="forbidden">▧ Forbidden: 2Ω &lt; displayed C</span><span class="boundary">━ Zero velocity</span><span class="track">━ Traveller's path</span><span>＋ L1–L5</span></div>
+        <p id="comparison">The boundary uses the traveller's initial Jacobi constant.</p>
+        <div class="plot-title"><h2>Does C stay constant?</h2><span id="error">Loading C engine…</span></div>
+        <canvas id="jacobi" role="img" aria-label="Jacobi constant error against elapsed time"></canvas>
+      </div>
+      <aside>
+        <p class="eyebrow">TRY AN ORBIT</p><h2 id="experiment">A little nudge at L4.</h2>
+        <p id="guidance">Start the L4 libration. The displaced traveller loops near the triangular point while C stays constant.</p>
+        <div class="presets"><button id="l4" disabled>L4 libration</button><button id="l1" disabled>L1 passage</button></div>
+        <div class="controls"><button id="pause" disabled>Start</button><button id="reset" disabled>Reset</button></div>
+        <label for="level">Compare the L1 neck</label>
+        <select id="level" disabled><option value="0">Traveller's C</option><option value="1">Closed · C(L1) + 0.01</option><option value="2">Open · C(L1) − 0.01</option></select>
+        <p id="run-status" role="status">Loading orbital engine…</p>
+        <dl><div><dt>Time <small>T</small></dt><dd id="time">0.00</dd></div><div><dt>Traveller's C <small>L²/T²</small></dt><dd id="c">—</dd></div><div><dt>Boundary C <small>L²/T²</small></dt><dd id="boundary-c">—</dd></div><div><dt>Maximum |ΔC|</dt><dd id="max-error">—</dd></div><div><dt>Secondary mass fraction μ</dt><dd id="mu">—</dd></div></dl>
+        <p class="note">Both masses move around their common centre. This lab uses total GM = separation = angular frequency = 1. It is a separate model from the fixed-star flight and Ice Run.</p>
+        <p class="note">The point masses are singular. The run stops at 60 T or before a step exceeds |ΔC| = 1e−6. An open neck permits passage; it does not promise one.</p>
+      </aside>
+    </section>
+    <section class="points"><h2>Where the forces balance</h2><p>Coordinates in the rotating frame; velocity is zero at equilibrium. L4 and L5 form equilateral triangles with the masses.</p><div class="table-wrap"><table><thead><tr><th>Point</th><th>x / L</th><th>y / L</th><th>C / (L²/T²)</th></tr></thead><tbody id="points"></tbody></table></div></section>
+    <footer><p>Numerical model and contours: C → WebAssembly. No server, saved data or audio.</p><a href="./">Back to free flight and The Ice Run →</a></footer>
+  </main>
+  <noscript>This laboratory needs JavaScript and WebAssembly. The C terminal edition exports the same results with --lagrange.</noscript>
+</body>
+</html>

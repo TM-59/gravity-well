@@ -11,3 +11,5 @@ test_voyage
 story_bench
 .story-check/
 theory_figs
+test_cr3bp
+test-results/

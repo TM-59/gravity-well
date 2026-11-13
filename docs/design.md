@@ -7,6 +7,9 @@
 | ファイル | 責務 |
 |---|---|
 | `src/orbit.c` / `orbit.h` | 物理の正典。星 GM=1、半径3の円軌道の月、テスト質量の船の積分 |
+| `src/cr3bp.c` / `cr3bp.h` | 別モードの重心回転系。両主星/コリオリ/遠心項・RK4・L1〜L5・ヤコビ定数・ゼロ速度曲線の正典 |
+| `src/lagrange.c` / `lagrange.h` | 同じモデルの実演制御・保存誤差の停止・端末CSV/SVGとWASM用API |
+| `web/lagrange.html`・`lagrange.css`・`lagrange.js` | 回転系観測画面。Cの座標・曲線を描画し、比較Cと軌道Cを分けて表示 |
 | `src/flight.c` / `flight.h` | ブラウザーの手動航行(mode 0、星+月)と Hohmann 実演(mode 1、星のみ) |
 | `src/voyage.c` / `voyage.h` | The Ice Run。5区間の遷移、場面の発火、燃料・目標輪・表示の揺れ・救援の扱い |
 | `src/voyage_web.c` | WASM の窓口 `vw_reset` / `vw_tick` / `vw_answer` / `vw_value`(物語の効果は `VE_ALL` で全部有効) |
@@ -14,6 +17,7 @@
 | `web/index.html`・`style.css`・`app.js` | 観測画面の配置、台詞(`SCENES`)、描画と入力 |
 | `tests/` | 単体テスト、物語の bench(`story_bench.c`)、人に近い自動操縦(`voyage_policy.h`) |
 | `scripts/smoke.cjs` | 実 WASM をキー・クリック・タッチで動かす検査と実画面の撮影 |
+| `tests/test_cr3bp.c`・`scripts/lagrange-smoke.cjs` | 独立根/保存則/次数/曲線/API境界、native/WASM一致と実PC/タッチ縦横 |
 
 ## 画面の状態
 

@@ -12,6 +12,7 @@ Why the program is correct, from the repository alone: every law, numerical rule
 2. [Transfers and burns](02-transfers.md) — the Hohmann transfer, thrust and finite burns, Raise / Lower / Match, rendezvous and crash
 3. [The integrator, the frame and the screen](03-integrator.md) — the velocity Verlet step, why its energy error stays bounded, second-order accuracy, the path from a key press to the picture
 4. [The Ice Run: the rules of the game layer](04-ice-run.md) — legs and clearing, fuel as delta-v, the wobbling readout, the flare, tows, the pod, scenes
+5. [The rotating three-body laboratory](05-rotating-three-body.md) — barycentric units, L1–L5, Jacobi conservation, RK4, zero-velocity curves and the shared native/WASM controller
 
 ## How the pieces depend on each other
 
@@ -78,6 +79,12 @@ flowchart TD
 | S20 | Tows: the drone and the carry | [4](04-ice-run.md) | `figures/tow.svg`, mermaid | `src/voyage.c#tow` | `tests/test_voyage.c#[mech] silence` |
 | S21 | The pod's grapple and the 11 T wait | [4](04-ice-run.md) | mermaid | `src/voyage.c#voyage_hold_need` | `tests/test_voyage.c#[mech] ilse` |
 | S22 | Scenes, choices, heavy scenes, endings | [4](04-ice-run.md) | mermaid | `src/voyage.c#voyage_init`, `src/voyage.c#voyage_answer`, `src/voyage.c#voyage_options`, `src/voyage.c#voyage_heavy`, `src/voyage.c#voyage_ending` | `tests/test_voyage.c#[quiet] flare`, `tests/test_voyage.c#[choice]` |
+| S23 | Barycentric units, potential and Coriolis acceleration | [5](05-rotating-three-body.md) | mermaid | `src/cr3bp.c#cr3bp_mu`, `src/cr3bp.c#cr3bp_potential`, `src/cr3bp.c#cr3bp_acceleration` | `tests/test_cr3bp.c#test_jacobi_and_order` |
+| S24 | Three collinear roots and two equilateral points | [5](05-rotating-three-body.md) | `figures/zero-velocity.svg` | `src/cr3bp.c#cr3bp_lagrange`, `src/lagrange.c#lab_point` | `tests/test_cr3bp.c#test_equilibria` |
+| S25 | Jacobi conservation along trajectories | [5](05-rotating-three-body.md) | `figures/jacobi.svg` | `src/cr3bp.c#cr3bp_jacobi` | `tests/test_cr3bp.c#test_jacobi_and_order` |
+| S26 | RK4 and the accepted-state accuracy limit | [5](05-rotating-three-body.md) | mermaid | `src/cr3bp.c#cr3bp_step`, `src/lagrange.c#lab_tick` | `tests/test_cr3bp.c#test_jacobi_and_order`, `tests/test_cr3bp.c#test_lab` |
+| S27 | Zero-velocity contours and forbidden regions | [5](05-rotating-three-body.md) | `figures/zero-velocity.svg` | `src/cr3bp.c#cr3bp_contours`, `src/lagrange.c#lab_allowed`, `src/lagrange.c#lab_segment` | `tests/test_cr3bp.c#test_contours` |
+| S28 | Shared native/WASM observation controller | [5](05-rotating-three-body.md) | mermaid | `src/lagrange.c#lab_reset`, `src/lagrange.c#lab_value`, `src/lagrange.c#lagrange_output` | `tests/test_cr3bp.c#test_lab`, `scripts/lagrange-smoke.cjs#nativeWasm` |
 
 Tests named `tests/theory_figs.c#…` are measurements recorded in [figures/values.md](figures/values.md) by `make theory-figs`, not assertions of `make test`. S05, S10 and S14 are covered only that way: the orbital elements, the Match command and the order of the integrator are exercised by the story tests and the bench but have no assertion of their own. Turning them into assertions is a follow-up.
 
@@ -98,4 +105,4 @@ Two things the measurements made visible:
 
 Functions reviewed for this handbook: every declaration in `src/orbit.h`, `src/flight.h`, `src/voyage.h`, `src/render.h`, `src/svg.h` and `src/gif.h`; the static helpers `impulse` in `src/flight.c` and `elements`, `match_vector`, `open_scene`, `raise_banner`, `start_leg`, `clear_leg`, `tow` in `src/voyage.c`; `headless` in `src/main.c`; and the wrappers of `src/voyage_web.c`, which only forward to `voyage_init`, `voyage_tick`, `voyage_answer` and `voyage_value`. The bench's pilot (`tests/voyage_policy.h`) is test code, not a rule of the game, and is described in `docs/design.md`.
 
-The simulation and the game are unchanged by this handbook: it adds `tests/theory_figs.c`, `scripts/theory-check.py`, two Makefile targets and these pages.
+S01–S22 document the original simulation and game. S23–S28 add the separate barycentric CR3BP experiment; the original `orbit.c` and `voyage.c` remain unchanged. `make theory-figs` also runs `make lagrange-plots` for the new figures and CSV tables.

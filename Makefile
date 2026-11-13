@@ -2,14 +2,15 @@ CC      ?= cc
 CFLAGS  ?= -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror
 LDLIBS  += -lm
 SRC     := src/orbit.c src/svg.c src/render.c src/gif.c
+CR3BP   := src/cr3bp.c src/lagrange.c src/svg.c
 EMCC    ?= emcc
 PYTHON  ?= python3
 NODE    ?= node
 
-.PHONY: all test bench story story-check web play smoke plots clean theory-figs theory-check
+.PHONY: all test bench story story-check web play smoke plots clean theory-figs theory-check lagrange-plots
 all: gravity-well
 
-gravity-well: $(SRC) src/main.c
+gravity-well: $(SRC) src/cr3bp.c src/lagrange.c src/main.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 test_orbit: $(SRC) tests/test_orbit.c
@@ -32,12 +33,16 @@ story_bench: $(VOYAGE) tests/story_bench.c $(VOYAGE_H)
 
 # The story rows are compared byte for byte; generate and check them with the
 # Debian 13 toolchain of the Dockerfile so libm rounds the same way everywhere.
-test: test_orbit test_gif test_flight test_voyage story_bench
+test_cr3bp: $(CR3BP) tests/test_cr3bp.c src/cr3bp.h src/lagrange.h src/orbit.h
+	$(CC) $(CFLAGS) -o $@ $(filter %.c,$^) $(LDLIBS)
+
+test: test_orbit test_gif test_flight test_voyage story_bench test_cr3bp
 	./test_orbit
 	./test_gif
 	./test_flight
 	./test_voyage
 	./story_bench --check docs/narrative
+	./test_cr3bp
 
 # Rewrites docs/narrative/{play-order,ablation,tension}.json.
 story: story_bench
@@ -56,8 +61,9 @@ story-check: story_bench
 bench: test_flight
 	./test_flight --bench
 
-web: dist/orbit.js
+web: dist/orbit.js dist/cr3bp.js
 	cp web/index.html web/style.css web/app.js dist/
+	cp web/lagrange.html web/lagrange.css web/lagrange.js dist/
 	mkdir -p dist/art
 	cp assets/art/* dist/art/
 	$(PYTHON) scripts/check-size.py
@@ -66,11 +72,16 @@ dist/orbit.js: src/orbit.c src/orbit.h src/flight.c src/flight.h src/voyage.c sr
 	mkdir -p dist
 	$(EMCC) -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror src/orbit.c src/flight.c src/voyage.c src/voyage_web.c --no-entry -sMODULARIZE -sEXPORT_NAME=createOrbit -sENVIRONMENT=web -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_flight_reset","_flight_tick","_flight_value","_vw_reset","_vw_tick","_vw_answer","_vw_value"]' -o $@
 
+dist/cr3bp.js: $(CR3BP) src/cr3bp.h src/lagrange.h src/orbit.h
+	mkdir -p dist
+	$(EMCC) $(CFLAGS) $(CR3BP) --no-entry -sMODULARIZE -sEXPORT_NAME=createLagrange -sENVIRONMENT=web,node -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_lab_reset","_lab_tick","_lab_value","_lab_point","_lab_segment","_lab_allowed"]' -o $@
+
 play: web
 	$(PYTHON) -m http.server 4216 --bind localhost --directory dist
 
 smoke: web
 	$(NODE) scripts/smoke.cjs
+	$(NODE) scripts/lagrange-smoke.cjs
 
 # Regenerates the CSV and the SVG charts shown in the README.
 plots: gravity-well
@@ -86,11 +97,15 @@ theory_figs: $(VOYAGE) src/flight.c src/svg.c tests/theory_figs.c $(VOYAGE_H) sr
 theory-figs: theory_figs
 	mkdir -p docs/theory/figures
 	./theory_figs docs/theory/figures
+	$(MAKE) lagrange-plots
+
+lagrange-plots: gravity-well
+	./gravity-well --lagrange docs/theory/figures
 
 # Fails when a statement of docs/theory has no figure, a link is broken, or a referenced function or test is gone.
 theory-check:
 	$(PYTHON) scripts/theory-check.py
 
 clean:
-	rm -f gravity-well test_orbit test_gif test_flight test_voyage story_bench theory_figs
+	rm -f gravity-well test_orbit test_gif test_flight test_voyage story_bench theory_figs test_cr3bp
 	rm -rf dist
