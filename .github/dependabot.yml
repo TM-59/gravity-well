@@ -1,10 +1,11 @@
-# Generated monthly updates for the manifests in this repository.
+# Generated weekly updates for the manifests in this repository.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+      day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 3
@@ -15,7 +16,8 @@ updates:
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+      day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 3
@@ -26,7 +28,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+      day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 3
