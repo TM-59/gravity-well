@@ -15,7 +15,7 @@
       <div class="plots">
         <div class="plot-title"><h2>Zero-velocity map</h2><span id="frame">Barycentric · separation 1 L</span></div>
         <canvas id="map" role="img" aria-label="Rotating frame: L1 to L5, the two masses, the traveller and the zero-velocity boundary"></canvas>
-        <div class="legend"><span class="forbidden">▧ Forbidden: 2Ω &lt; displayed C</span><span class="boundary">━ Zero velocity</span><span class="track">━ Traveller's path</span><span>＋ L1–L5</span></div>
+        <div class="legend"><span class="forbidden">▧ Forbidden: 2Ω &lt; displayed C</span><span class="boundary">━ Zero velocity</span><span class="track">━ Traveller's path</span><span>＋ L1–L5</span><span class="primary-a">● primary</span><span class="primary-b">● secondary</span></div>
         <p id="comparison">The boundary uses the traveller's initial Jacobi constant.</p>
         <div class="plot-title"><h2>Does C stay constant?</h2><span id="error">Loading C engine…</span></div>
         <canvas id="jacobi" role="img" aria-label="Jacobi constant error against elapsed time"></canvas>
@@ -25,11 +25,15 @@
         <p id="guidance">Start the L4 libration. The displaced traveller loops near the triangular point while C stays constant.</p>
         <div class="presets"><button id="l4" disabled>L4 libration</button><button id="l1" disabled>L1 passage</button></div>
         <div class="controls"><button id="pause" disabled>Start</button><button id="reset" disabled>Reset</button></div>
+        <label for="mass">Secondary mass fraction μ = <output id="mass-out" for="mass">—</output></label>
+        <input id="mass" type="range" min="0.001" max="0.5" step="0.0005" value="0.01" disabled>
+        <p id="stability" class="verdict" role="status">—</p>
+        <button id="view" class="wide" aria-pressed="false" disabled>View: rotating frame</button>
         <label for="level">Compare the L1 neck</label>
         <select id="level" disabled><option value="0">Traveller's C</option><option value="1">Closed · C(L1) + 0.01</option><option value="2">Open · C(L1) − 0.01</option></select>
         <p id="run-status" role="status">Loading orbital engine…</p>
-        <dl><div><dt>Time <small>T</small></dt><dd id="time">0.00</dd></div><div><dt>Traveller's C <small>L²/T²</small></dt><dd id="c">—</dd></div><div><dt>Boundary C <small>L²/T²</small></dt><dd id="boundary-c">—</dd></div><div><dt>Maximum |ΔC|</dt><dd id="max-error">—</dd></div><div><dt>Secondary mass fraction μ</dt><dd id="mu">—</dd></div></dl>
-        <p class="note">Both masses move around their common centre. This lab uses total GM = separation = angular frequency = 1. It is a separate model from the fixed-star flight and Ice Run.</p>
+        <dl><div><dt>Time <small>T</small></dt><dd id="time">0.00</dd></div><div><dt>Traveller's C <small>L²/T²</small></dt><dd id="c">—</dd></div><div><dt>Boundary C <small>L²/T²</small></dt><dd id="boundary-c">—</dd></div><div><dt>Maximum |ΔC|</dt><dd id="max-error">—</dd></div><div><dt>Secondary mass fraction μ</dt><dd id="mu">—</dd></div><div><dt>L4 libration periods <small>T</small></dt><dd id="periods">—</dd></div><div><dt>L4 growth rate <small>1/T</small></dt><dd id="growth4">—</dd></div><div><dt>L1 growth rate <small>1/T</small></dt><dd id="growth1">—</dd></div><div><dt>Hill radius ∛(μ/3) <small>L</small></dt><dd id="hill">—</dd></div></dl>
+        <p class="note">Both masses move around their common centre. This lab uses total GM = separation = angular frequency = 1. It is a separate model from the fixed-star flight and Ice Run. L4 and L5 are linearly stable only while μ is below Routh's limit 0.03852; L1–L3 are saddles at every μ. The inertial view shows the same C trajectory without rotating with the pair.</p>
         <p class="note">The point masses are singular. The run stops at 60 T or before a step exceeds |ΔC| = 1e−6. An open neck permits passage; it does not promise one.</p>
       </aside>
     </section>

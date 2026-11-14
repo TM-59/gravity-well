@@ -12,7 +12,7 @@ Why the program is correct, from the repository alone: every law, numerical rule
 2. [Transfers and burns](02-transfers.md) — the Hohmann transfer, thrust and finite burns, Raise / Lower / Match, rendezvous and crash
 3. [The integrator, the frame and the screen](03-integrator.md) — the velocity Verlet step, why its energy error stays bounded, second-order accuracy, the path from a key press to the picture
 4. [The Ice Run: the rules of the game layer](04-ice-run.md) — legs and clearing, fuel as delta-v, the wobbling readout, the flare, tows, the pod, scenes
-5. [The rotating three-body laboratory](05-rotating-three-body.md) — barycentric units, L1–L5, Jacobi conservation, RK4, zero-velocity curves and the shared native/WASM controller
+5. [The rotating three-body laboratory](05-rotating-three-body.md) — barycentric units, L1–L5, Jacobi conservation, RK4, zero-velocity curves, the inertial frame, linear stability, libration periods, Routh's condition and the Hill radius
 
 ## How the pieces depend on each other
 
@@ -85,6 +85,12 @@ flowchart TD
 | S26 | RK4 and the accepted-state accuracy limit | [5](05-rotating-three-body.md) | mermaid | `src/cr3bp.c#cr3bp_step`, `src/lagrange.c#lab_tick` | `tests/test_cr3bp.c#test_jacobi_and_order`, `tests/test_cr3bp.c#test_lab` |
 | S27 | Zero-velocity contours and forbidden regions | [5](05-rotating-three-body.md) | `figures/zero-velocity.svg` | `src/cr3bp.c#cr3bp_contours`, `src/lagrange.c#lab_allowed`, `src/lagrange.c#lab_segment` | `tests/test_cr3bp.c#test_contours` |
 | S28 | Shared native/WASM observation controller | [5](05-rotating-three-body.md) | mermaid | `src/lagrange.c#lab_reset`, `src/lagrange.c#lab_value`, `src/lagrange.c#lagrange_output` | `tests/test_cr3bp.c#test_lab`, `scripts/lagrange-smoke.cjs#nativeWasm` |
+| S29 | Rotating and inertial frames; C = −2(E − h) | [5](05-rotating-three-body.md) | `figures/frames.svg` | `src/cr3bp.c#cr3bp_to_inertial`, `src/cr3bp.c#cr3bp_to_rotating` | `tests/test_cr3bp.c#test_frames` |
+| S30 | Linearised motion and the characteristic equation | [5](05-rotating-three-body.md) | `figures/l4-modes.svg` | `src/cr3bp.c#cr3bp_hessian`, `src/cr3bp.c#cr3bp_modes`, `src/cr3bp.c#cr3bp_mode_start` | `tests/test_cr3bp.c#test_stability` |
+| S31 | L1–L3 are saddles at every mass fraction | [5](05-rotating-three-body.md) | `figures/collinear-growth.svg` | `src/cr3bp.c#cr3bp_modes`, `src/lagrange.c#lab_measured_growth` | `tests/test_cr3bp.c#test_stability` |
+| S32 | L4/L5 libration: two periods | [5](05-rotating-three-body.md) | `figures/l4-libration.svg` | `src/cr3bp.c#cr3bp_mode_start`, `src/lagrange.c#lab_measured_period` | `tests/test_cr3bp.c#test_stability` |
+| S33 | Routh's condition for L4/L5 | [5](05-rotating-three-body.md) | `figures/l4-routh.svg` | `src/cr3bp.c#cr3bp_routh`, `src/lagrange.c#lab_measured_drift`, `src/lagrange.c#lab_set_mu` | `tests/test_cr3bp.c#test_stability`, `tests/test_cr3bp.c#test_lab_mu` |
+| S34 | Hill radius as the small-mass limit of L1/L2 | [5](05-rotating-three-body.md) | `figures/hill.svg` | `src/cr3bp.c#cr3bp_lagrange`, `src/lagrange.c#lab_value` | `tests/test_cr3bp.c#test_equilibria`, `tests/test_cr3bp.c#test_stability` |
 
 Tests named `tests/theory_figs.c#…` are measurements recorded in [figures/values.md](figures/values.md) by `make theory-figs`, not assertions of `make test`. S05, S10 and S14 are covered only that way: the orbital elements, the Match command and the order of the integrator are exercised by the story tests and the bench but have no assertion of their own. Turning them into assertions is a follow-up.
 
@@ -105,4 +111,4 @@ Two things the measurements made visible:
 
 Functions reviewed for this handbook: every declaration in `src/orbit.h`, `src/flight.h`, `src/voyage.h`, `src/render.h`, `src/svg.h` and `src/gif.h`; the static helpers `impulse` in `src/flight.c` and `elements`, `match_vector`, `open_scene`, `raise_banner`, `start_leg`, `clear_leg`, `tow` in `src/voyage.c`; `headless` in `src/main.c`; and the wrappers of `src/voyage_web.c`, which only forward to `voyage_init`, `voyage_tick`, `voyage_answer` and `voyage_value`. The bench's pilot (`tests/voyage_policy.h`) is test code, not a rule of the game, and is described in `docs/design.md`.
 
-S01–S22 document the original simulation and game. S23–S28 add the separate barycentric CR3BP experiment; the original `orbit.c` and `voyage.c` remain unchanged. `make theory-figs` also runs `make lagrange-plots` for the new figures and CSV tables.
+S01–S22 document the original simulation and game. S23–S34 add the separate barycentric CR3BP experiment; the original `orbit.c` and `voyage.c` remain unchanged. `make theory-figs` also runs `make lagrange-plots` for the new figures and CSV tables.

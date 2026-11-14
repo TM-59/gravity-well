@@ -23,5 +23,25 @@ Ship cr3bp_lagrange(double mu, int index);
  * Cells with a singular vertex are omitted. */
 size_t cr3bp_contours(double mu, double c, double extent, int grid,
                      ZeroSegment *out, size_t cap);
+/* Second derivatives of Omega at (x,y): the linearised force about a point. */
+void cr3bp_hessian(double mu, double x, double y, double *xx, double *xy, double *yy);
+/* Linear modes about Lagrange point `index`. With xi''-2 eta' = Oxx xi + Oxy eta,
+ * eta''+2 xi' = Oxy xi + Oyy eta, s = lambda^2 solves s^2 + (4-Oxx-Oyy) s +
+ * (Oxx Oyy - Oxy^2) = 0. growth = largest Re(lambda) [1/T] (0 when linearly
+ * stable); omega[] = angular frequencies of the oscillating modes, largest
+ * first. Returns how many omega[] entries were written (0..2), -1 on bad input. */
+int cr3bp_modes(double mu, int index, double *growth, double omega[2]);
+/* A state displaced from Lagrange point `index` along one linear eigenmode, with
+ * position offset of length `scale`. mode 0: the growing real mode (collinear
+ * points); mode 1/2: the oscillating mode omega[0]/omega[1], started at an
+ * extreme of eta so eta(t) is proportional to cos(omega t). NaN if absent. */
+Ship cr3bp_mode_start(double mu, int index, int mode, double scale);
+/* Routh's critical mass fraction (1 - sqrt(23/27))/2: L4/L5 are linearly
+ * stable only below it. */
+double cr3bp_routh(void);
+/* Rotating <-> inertial barycentric states at time t (frames coincide at t=0,
+ * rotating frame turns counter-clockwise at n = 1). */
+Ship cr3bp_to_inertial(const Ship *rotating, double t);
+Ship cr3bp_to_rotating(const Ship *inertial, double t);
 
 #endif

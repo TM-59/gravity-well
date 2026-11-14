@@ -95,3 +95,69 @@ size_t cr3bp_contours(double mu, double c, double extent, int grid,
     }
     return count;
 }
+
+void cr3bp_hessian(double mu, double x, double y, double *xx, double *xy, double *yy)
+{
+    double dx=x+mu, ex=x-1.0+mu, r=hypot(dx,y), q=hypot(ex,y);
+    double a=(1.0-mu)/(r*r*r), b=mu/(q*q*q), a5=3.0*a/(r*r), b5=3.0*b/(q*q);
+    *xx=1.0-a-b+a5*dx*dx+b5*ex*ex;
+    *yy=1.0-a-b+(a5+b5)*y*y;
+    *xy=a5*dx*y+b5*ex*y;
+}
+
+int cr3bp_modes(double mu, int index, double *growth, double omega[2])
+{
+    Ship p=cr3bp_lagrange(mu,index);
+    if (isnan(p.x)) return -1;
+    double xx,xy,yy;
+    cr3bp_hessian(mu,p.x,p.y,&xx,&xy,&yy);
+    double b=4.0-xx-yy, c=xx*yy-xy*xy, disc=b*b-4.0*c;
+    int n=0;
+    *growth=0;
+    if (disc<0) { /* s is a complex pair: all four lambda leave the axes */
+        double re=-b/2, mod=sqrt(c);
+        *growth=sqrt((mod+re)/2);
+        omega[n++]=sqrt((mod-re)/2);
+        return n;
+    }
+    double root=sqrt(disc), s[2]={(-b-root)/2,(-b+root)/2};
+    for (int k=0;k<2;k++) {
+        if (s[k]<0) omega[n++]=sqrt(-s[k]);
+        else *growth=fmax(*growth,sqrt(s[k]));
+    }
+    return n;
+}
+
+double cr3bp_routh(void) { return (1.0-sqrt(23.0/27.0))/2.0; }
+
+Ship cr3bp_to_inertial(const Ship *r, double t)
+{
+    double c=cos(t), s=sin(t), ux=r->vx-r->y, uy=r->vy+r->x;
+    return (Ship){r->x*c-r->y*s, r->x*s+r->y*c, ux*c-uy*s, ux*s+uy*c};
+}
+
+Ship cr3bp_to_rotating(const Ship *i, double t)
+{
+    double c=cos(t), s=sin(t);
+    double x=i->x*c+i->y*s, y=-i->x*s+i->y*c;
+    return (Ship){x, y, i->vx*c+i->vy*s+y, -i->vx*s+i->vy*c-x};
+}
+
+Ship cr3bp_mode_start(double mu, int index, int mode, double scale)
+{
+    Ship p=cr3bp_lagrange(mu,index), bad={NAN,NAN,0,0};
+    double g,w[2],xx,xy,yy,xi,eta,vxi,veta;
+    int n=cr3bp_modes(mu,index,&g,w);
+    if (n<0) return bad;
+    cr3bp_hessian(mu,p.x,p.y,&xx,&xy,&yy);
+    if (mode==0) {
+        if (!(g>0) || (4-xx-yy)*(4-xx-yy)<4*(xx*yy-xy*xy)) return bad;
+        xi=2*g+xy; eta=g*g-xx; vxi=g*xi; veta=g*eta;
+    } else {
+        if (mode<1 || mode>n || (g>0 && n==1)) return bad;
+        double o=w[mode-1];
+        xi=xy; eta=-(o*o+xx); vxi=-2*o*o; veta=0;
+    }
+    double k=scale/hypot(xi,eta);
+    return (Ship){p.x+k*xi,p.y+k*eta,k*vxi,k*veta};
+}

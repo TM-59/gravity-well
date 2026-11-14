@@ -74,7 +74,7 @@ dist/orbit.js: src/orbit.c src/orbit.h src/flight.c src/flight.h src/voyage.c sr
 
 dist/cr3bp.js: $(CR3BP) src/cr3bp.h src/lagrange.h src/orbit.h
 	mkdir -p dist
-	$(EMCC) $(CFLAGS) $(CR3BP) --no-entry -sMODULARIZE -sEXPORT_NAME=createLagrange -sENVIRONMENT=web,node -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_lab_reset","_lab_tick","_lab_value","_lab_point","_lab_segment","_lab_allowed"]' -o $@
+	$(EMCC) $(CFLAGS) $(CR3BP) --no-entry -sMODULARIZE -sEXPORT_NAME=createLagrange -sENVIRONMENT=web,node -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_lab_reset","_lab_set_mu","_lab_tick","_lab_value","_lab_point","_lab_segment","_lab_allowed"]' -o $@
 
 play: web
 	$(PYTHON) -m http.server 4216 --bind localhost --directory dist

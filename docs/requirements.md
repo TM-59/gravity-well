@@ -51,7 +51,7 @@
 - 3軌道各60 Tの全ステップでヤコビ定数の誤差1e−6以下。ゼロ速度曲線・禁制領域・軌道・C誤差を描く。
 - 端末CSV/SVGとブラウザーWASMが同じC計算を使う。比較用Cを実軌道のCと区別する。
 - PC/タッチ縦横で開始・L1/L4切替・一時停止・リセット・比較選択・戻るを操作でき、文字14px/操作44px以上。
-- `make test`、`make lagrange-plots`、`make theory-check`、`make smoke`で検証し、新規理論6文すべてに図を持つ。
+- `make test`、`make lagrange-plots`、`make theory-check`、`make smoke`で検証し、新規理論12文すべてに図を持つ。質量比スライダー(0.001〜0.5)、回転系/慣性系の切替、L4/L5 の線形安定性(Routh の限界)と L1〜L3 の不安定を C で計算し表示する。
 
 ## 未検証
 

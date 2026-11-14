@@ -24,7 +24,7 @@ async function run(){
   for(let p=0;p<2;p++){
     wasm._lab_reset(p,0);
     for(let i=0;i<50;i++){
-      for(let f=0;f<13;f++){
+      for(let f=0;f<21;f++){
         const a=wasm._lab_value(f),b=native[row][f],error=Math.abs(a-b)/Math.max(1,Math.abs(b));
         maxDifference=Math.max(maxDifference,error);check(error<1e-10,`native/WASM row ${row} field ${f}`);
       }
@@ -35,10 +35,10 @@ async function run(){
   const origin=`http://localhost:${server.address().port}`;
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const errors=[],external=[],screens=[];
-  for(const [width,height]of [[1440,1000],[390,844],[844,390]]){
-    const context=await browser.newContext({viewport:{width,height},hasTouch:width!==1440});
+  for(const [width,height]of [[1440,1000],[1024,768],[390,844],[844,390]]){
+    const context=await browser.newContext({viewport:{width,height},hasTouch:width<1000});
     const page=await context.newPage();
-    const activate=locator=>width===1440?locator.click():locator.tap();
+    const activate=locator=>width>=1000?locator.click():locator.tap();
     page.on('pageerror',e=>errors.push(e.message));
     page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
     page.on('request',r=>{if(!r.url().startsWith(origin)&&!r.url().startsWith('data:'))external.push(r.url());});
@@ -80,15 +80,47 @@ async function run(){
     await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
     const blurred=await snap(page);await page.clock.runFor(400);
     check(blurred.paused&&(await snap(page)).time===blurred.time,'blur pauses without stale time');
+    // Frame switch: the inertial position comes from C and equals the rotating one turned by t.
+    await activate(page.getByRole('button',{name:'View: rotating frame',exact:true}));
+    const turned=await snap(page);
+    check(turned.inertial&&await page.locator('#view').getAttribute('aria-pressed')==='true','inertial view is selected and labelled');
+    check(Math.hypot(turned.ix-(turned.x*Math.cos(turned.time)-turned.y*Math.sin(turned.time)),turned.iy-(turned.x*Math.sin(turned.time)+turned.y*Math.cos(turned.time)))<1e-12,'C inertial position is the rotated rotating position');
+    check((await page.locator('#frame').textContent()).startsWith('Inertial'),'plot title names the frame');
+    if(width===1440){
+      await activate(page.getByRole('button',{name:'Resume',exact:true}));
+      await page.clock.runFor(12000);
+      await activate(page.getByRole('button',{name:'Pause',exact:true}));
+      check((await snap(page)).time>10,'the run continues in the inertial view');
+      await page.screenshot({path:'docs/images/lagrange-inertial-1440x1000.png',fullPage:true});
+    }
+    await activate(page.getByRole('button',{name:'View: inertial frame',exact:true}));
+    check(!(await snap(page)).inertial,'back to the rotating view');
+    // Mass-ratio slider with real keys: above Routh's limit L4 is unstable and a nudge leaves.
+    await page.locator('#mass').focus();await page.keyboard.press('End');
+    const heavy=await snap(page);
+    check(heavy.mu===0.5&&heavy.growth4>0&&heavy.time===0&&heavy.paused,'slider sets the C mass fraction and resets the run');
+    check(Math.abs(heavy.points[0][0])<1e-12&&Math.abs(heavy.points[3][0])<1e-12,'equal masses: L1 and L4 sit on the symmetry axis');
+    check((await page.locator('#stability').textContent()).includes('above Routh'),'unstable L4 is stated');
+    await activate(page.getByRole('button',{name:'L4 libration',exact:true}));
+    await page.clock.runFor(20000);
+    const away=await snap(page);
+    check(Math.hypot(away.x-away.points[3][0],away.y-away.points[3][1])>0.3&&away.error<=1e-6,'above Routh the traveller leaves L4');
+    await page.locator('#mass').focus();await page.keyboard.press('Home');
+    const light=await snap(page);
+    check(light.mu===0.001&&light.growth4===0&&light.wShort>light.wLong,'below Routh both L4 modes oscillate');
+    check((await page.locator('#stability').textContent()).includes('below Routh'),'stable L4 is stated');
+    await page.locator('#mass').focus();
+    for(let i=0;i<18;i++)await page.keyboard.press('ArrowRight');
+    check(Math.abs((await snap(page)).mu-0.01)<1e-12,'slider steps of 0.0005');
     check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow');
     const metrics=await page.evaluate(()=>{
       const els=[...document.querySelectorAll('body *')].filter(e=>e.getClientRects().length&&[...e.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()));
       const fonts=els.map(e=>parseFloat(getComputedStyle(e).fontSize));
-      const targets=[...document.querySelectorAll('button,select,a')].map(e=>{const r=e.getBoundingClientRect();return[r.width,r.height];});
+      const targets=[...document.querySelectorAll('button,select,a,input')].map(e=>{const r=e.getBoundingClientRect();return[r.width,r.height];});
       return {minFont:Math.min(...fonts,...window.canvasFonts),minTarget:Math.min(...targets.flat())};
     });
     check(metrics.minFont>=14,'all visible DOM and canvas text >=14 CSS px');
-    check(metrics.minTarget>=44,'all buttons, links and select >=44 CSS px');
+    check(metrics.minTarget>=44,'all buttons, links, select and slider >=44 CSS px');
     check(await page.locator('.table-wrap').evaluate(el=>el.scrollWidth<=el.clientWidth),'point coordinates fit without clipping');
     await activate(page.getByRole('button',{name:'L1 passage',exact:true}));
     await page.clock.runFor(800);
@@ -108,7 +140,7 @@ async function run(){
   check(await failure.locator('#l4').isDisabled(),'engine failure keeps controls disabled');
   await failure.close();
   check(errors.length===0,`browser errors: ${errors.join(';')}`);check(external.length===0,'no external requests');
-  const result={checks,errors:errors.length,externalRequests:external.length,nativeWasm:{rows:100,columns:13,maxRelativeDifference:maxDifference},screens};
+  const result={checks,errors:errors.length,externalRequests:external.length,nativeWasm:{rows:100,columns:21,maxRelativeDifference:maxDifference},screens};
   fs.writeFileSync('test-results/lagrange-smoke.json',JSON.stringify(result,null,2)+'\n');
   console.log(JSON.stringify(result,null,2));
 }

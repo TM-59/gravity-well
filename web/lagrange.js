@@ -2,12 +2,12 @@
 // Only drawing, controls and timing. All states, potentials, roots and contour
 // edge intersections come from the same C functions as the terminal output.
 const $=id=>document.getElementById(id);
-const names=['x','y','vx','vy','time','c','c0','error','mu','level','segments','status','preset'];
-let engine,state,paused=true,last=0,elapsed=0,preset=0,level=0,trail=[],history=[],segments=[],mask=[];
+const names=['x','y','vx','vy','time','c','c0','error','mu','level','segments','status','preset','ix','iy','growth1','growth4','wShort','wLong','routh','hill'];
+let engine,state,paused=true,last=0,elapsed=0,preset=0,level=0,inertial=false,trail=[],history=[],segments=[],mask=[];
 const fields=()=>Object.fromEntries(names.map((name,i)=>[name,engine._lab_value(i)]));
 function reset(start=false){
   engine._lab_reset(preset,level);state=fields();paused=!start;elapsed=0;
-  trail=[[state.x,state.y]];history=[[0,0]];
+  trail=[[state.x,state.y,state.ix,state.iy]];history=[[0,0]];
   segments=Array.from({length:state.segments},(_,i)=>Array.from({length:4},(_,k)=>engine._lab_segment(i,k)));
   mask=Array.from({length:80*80},(_,i)=>engine._lab_allowed(-1.7+(i%80+.5)*3.4/80,-1.7+(Math.floor(i/80)+.5)*3.4/80)<0);
   $('points').replaceChildren();
@@ -29,6 +29,13 @@ function update(){
   $('run-status').textContent=state.status===1?'Stopped before a close encounter exceeds the accuracy budget. Reset to try again.':state.status===2?'60 T observation complete. Reset to start again.':paused?'Ready / time paused':'Coasting / no thrust';
   $('time').textContent=state.time.toFixed(2);$('c').textContent=state.c.toFixed(9);
   $('boundary-c').textContent=state.level.toFixed(9);$('max-error').textContent=state.error.toExponential(2);$('mu').textContent=state.mu.toFixed(9);
+  $('mass-out').textContent=state.mu.toFixed(4);
+  const stable=state.growth4===0;
+  $('stability').textContent=stable?`μ is below Routh's limit ${state.routh.toFixed(5)}: L4 and L5 are linearly stable.`:`μ is above Routh's limit ${state.routh.toFixed(5)}: a nudge at L4 spirals away, e-folding every ${(1/state.growth4).toFixed(1)} T.`;
+  $('periods').textContent=stable?`${(2*Math.PI/state.wShort).toFixed(2)} · ${(2*Math.PI/state.wLong).toFixed(2)}`:'none (unstable)';
+  $('growth4').textContent=state.growth4.toFixed(4);$('growth1').textContent=state.growth1.toFixed(4);$('hill').textContent=state.hill.toFixed(4);
+  $('view').textContent=inertial?'View: inertial frame':'View: rotating frame';$('view').setAttribute('aria-pressed',String(inertial));
+  $('frame').textContent=inertial?'Inertial · the pair turns once per 2π T':'Rotating with the pair · separation 1 L';
   $('error').textContent=`max |ΔC| ${state.error.toExponential(2)}`;
   $('comparison').textContent=level?'Comparison only: grey regions use the selected boundary C. The amber traveller keeps its own C, shown in the data panel.':'The boundary uses the traveller’s initial C; it cannot enter the grey regions while C is conserved.';
 }
@@ -41,17 +48,20 @@ function context(id){
 function draw(){
   if(!state)return;
   const {ctx,w,h}=context('map'),scale=Math.min(w-48,h-48)/3.4;
-  const point=(x,y)=>[w/2+x*scale,h/2-y*scale];
+  const flat=(x,y)=>[w/2+x*scale,h/2-y*scale];
+  // View transform only: the rotating picture is turned by the elapsed angle n t.
+  const cos=Math.cos(inertial?state.time:0),sin=Math.sin(inertial?state.time:0);
+  const point=(x,y)=>flat(x*cos-y*sin,x*sin+y*cos);
   for(let i=0;i<mask.length;i++)if(mask[i]){
-    const [x,y]=point(-1.7+(i%80)*3.4/80,-1.7+(Math.floor(i/80)+1)*3.4/80);
-    ctx.fillStyle='#626b874c';ctx.fillRect(x,y,3.4/80*scale+1,3.4/80*scale+1);
+    const [x,y]=point(-1.7+(i%80+.5)*3.4/80,-1.7+(Math.floor(i/80)+.5)*3.4/80),side=3.4/80*scale+1;
+    ctx.fillStyle='#626b874c';ctx.fillRect(x-side/2,y-side/2,side,side);
   }
   ctx.strokeStyle='#354b5b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(12,h/2);ctx.lineTo(w-12,h/2);ctx.moveTo(w/2,12);ctx.lineTo(w/2,h-12);ctx.stroke();
-  ctx.fillStyle='#b3c1cc';ctx.fillText('x / L',w-52,h/2+18);ctx.fillText('y / L',w/2+8,18);
+  ctx.fillStyle='#b3c1cc';ctx.fillText(inertial?'X / L':'x / L',w-52,h/2+18);ctx.fillText(inertial?'Y / L':'y / L',w/2+8,18);
   ctx.strokeStyle='#8ddbe3';ctx.beginPath();
   for(const [x1,y1,x2,y2]of segments){ctx.moveTo(...point(x1,y1));ctx.lineTo(...point(x2,y2));}ctx.stroke();
   ctx.strokeStyle='#efbd84';ctx.lineWidth=2;ctx.beginPath();
-  trail.forEach(([x,y],i)=>{if(i)ctx.lineTo(...point(x,y));else ctx.moveTo(...point(x,y));});ctx.stroke();
+  trail.forEach(([x,y,ix,iy],i)=>{const p=inertial?flat(ix,iy):flat(x,y);if(i)ctx.lineTo(...p);else ctx.moveTo(...p);});ctx.stroke();
   for(let i=1;i<=5;i++){
     const [x,y]=point(engine._lab_point(i,0),engine._lab_point(i,1));
     ctx.strokeStyle='#eee9df';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x-4,y);ctx.lineTo(x+4,y);ctx.moveTo(x,y-4);ctx.lineTo(x,y+4);ctx.stroke();
@@ -60,7 +70,7 @@ function draw(){
   for(const [x,r,color]of [[-state.mu,7,'#efbd84'],[1-state.mu,5,'#b5a2ee']]){
     const p=point(x,0);ctx.fillStyle=color;ctx.beginPath();ctx.arc(...p,r,0,2*Math.PI);ctx.fill();
   }
-  ctx.fillStyle='#efbd84';ctx.beginPath();ctx.arc(...point(state.x,state.y),4,0,2*Math.PI);ctx.fill();
+  ctx.fillStyle='#efbd84';ctx.beginPath();ctx.arc(...(inertial?flat(state.ix,state.iy):flat(state.x,state.y)),4,0,2*Math.PI);ctx.fill();
   const chart=context('jacobi'),c=chart.ctx,W=chart.w,H=chart.h;
   const xmax=Math.max(1,state.time),yrange=Math.max(1e-14,state.error*1.2);
   c.fillStyle='#b3c1cc';c.fillText(`ΔC / (L²/T²) · ±${yrange.toExponential(1)}`,12,20);
@@ -74,7 +84,7 @@ function frame(now){
     elapsed+=Math.min((now-last)/1000,.1);
     while(elapsed>=.04&&!state.status){
       engine._lab_tick(1);state=fields();elapsed-=.04;
-      trail.push([state.x,state.y]);history.push([state.time,state.c-state.c0]);
+      trail.push([state.x,state.y,state.ix,state.iy]);history.push([state.time,state.c-state.c0]);
     }
     if(state.status)paused=true;
     update();draw();
@@ -84,11 +94,13 @@ function frame(now){
 function pause(){if(!engine)return;paused=true;elapsed=0;update();}
 $('l4').onclick=()=>{preset=0;reset(true);};$('l1').onclick=()=>{preset=1;reset(true);};
 $('pause').onclick=()=>{paused=!paused;elapsed=0;update();};$('reset').onclick=()=>reset(false);
+$('mass').oninput=()=>{engine._lab_set_mu(Number($('mass').value));reset(false);};
+$('view').onclick=()=>{inertial=!inertial;update();draw();};
 $('level').onchange=()=>{level=Number($('level').value);reset(false);};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
 window.addEventListener('blur',pause);window.addEventListener('resize',draw);
-Object.defineProperty(window,'lagrangeView',{value:Object.freeze({get snapshot(){return state?{...state,paused,levelIndex:level,points:Array.from({length:5},(_,i)=>[engine._lab_point(i+1,0),engine._lab_point(i+1,1)]),trailLength:trail.length}:null;}})});
+Object.defineProperty(window,'lagrangeView',{value:Object.freeze({get snapshot(){return state?{...state,paused,inertial,levelIndex:level,points:Array.from({length:5},(_,i)=>[engine._lab_point(i+1,0),engine._lab_point(i+1,1)]),trailLength:trail.length}:null;}})});
 Promise.resolve().then(()=>createLagrange()).then(module=>{
-  engine=module;reset();for(const id of ['l4','l1','pause','reset','level'])$(id).disabled=false;
+  engine=module;reset();for(const id of ['l4','l1','pause','reset','level','mass','view'])$(id).disabled=false;
   requestAnimationFrame(frame);
 }).catch(()=>{$('run-status').textContent='Could not load the C engine. Reload to retry.';});

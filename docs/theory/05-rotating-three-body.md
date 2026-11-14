@@ -119,6 +119,111 @@ flowchart LR
 
 **Tests.** `test_lab`, and local `scripts/lagrange-smoke.cjs`: native/WASM 100×13 values, real navigation, both presets, pause/reset/blur, changing boundaries, missing-engine recovery, text ≥14 CSS px and targets ≥44 CSS px in desktop and phone portrait/landscape.
 
+## S29 — One motion, two frames
+
+**Statement.** With the frames coincident at $t=0$ and the rotating frame turning counter-clockwise at $n=1$, a rotating state $(x,y,v_x,v_y)$ is the inertial state
+
+$$X=x\cos t-y\sin t,\quad Y=x\sin t+y\cos t,$$
+$$V_X=(v_x-y)\cos t-(v_y+x)\sin t,\quad V_Y=(v_x-y)\sin t+(v_y+x)\cos t .$$
+
+The Jacobi constant of S25 is the inertial energy minus angular momentum: $C=-2(E-h)$, with $E=\tfrac12V^2-(1-\mu)/r_1-\mu/r_2$ and $h=XV_Y-YV_X$. Neither $E$ nor $h$ is conserved alone, because the primaries move.
+
+**Assumptions and limits.** Planar motion, circular primaries, $n=1$. The transform is exact algebra; it adds no physics. The Coriolis term $2(v_y,-v_x)$ and the centrifugal term $(x,y)$ of S23 exist only in the rotating description.
+
+**Derivation.** Rotate the position by the angle $t$. Differentiating $X(t)$ gives the rotated $(v_x,v_y)$ plus $\hat z\times(x,y)=(-y,x)$, also rotated. Substituting, $V^2=v^2+2(xv_y-yv_x)+x^2+y^2$ and $h=xv_y-yv_x+x^2+y^2$, so $E-h=\tfrac12v^2-\tfrac12(x^2+y^2)-(1-\mu)/r_1-\mu/r_2=-C/2$.
+
+![The same 60 T trajectory near L4 in the rotating and the inertial frame](figures/frames.svg)
+
+**Code.** `src/cr3bp.c#cr3bp_to_inertial`, `src/cr3bp.c#cr3bp_to_rotating`; the browser's frame switch reads the inertial position from C.
+
+**Tests.** `test_frames`: the round trip over 4,001 states returns within 8.9e−16; $C+2(E-h)$ stays within 5.3e−15; the secondary's inertial speed and radius are $1-\mu$. An independent RK4 of plain Newtonian gravity from two circling primaries, with no fictitious force, agrees with the rotating integration to 1.29e−8 L after 20 T (dt 0.00125 T).
+
+## S30 — Linearised motion about a Lagrange point
+
+**Statement.** For a small offset $(\xi,\eta)$ from an equilibrium,
+
+$$\ddot\xi-2\dot\eta=\Omega_{xx}\xi+\Omega_{xy}\eta,\qquad \ddot\eta+2\dot\xi=\Omega_{xy}\xi+\Omega_{yy}\eta .$$
+
+Solutions $e^{\lambda t}$ satisfy, with $s=\lambda^2$,
+
+$$s^2+(4-\Omega_{xx}-\Omega_{yy})\,s+(\Omega_{xx}\Omega_{yy}-\Omega_{xy}^2)=0 .$$
+
+A negative real $s$ is an oscillation of angular frequency $\sqrt{-s}$; a positive real $s$, or a complex pair, contains a growing mode with rate $\mathrm{Re}\,\lambda>0$. An eigenvector is $(\xi,\eta)\propto(2\lambda+\Omega_{xy},\ \lambda^2-\Omega_{xx})$.
+
+**Assumptions and limits.** First order in the offset only. "Linearly stable" means no growing exponential in this equation; it is not a proof of stability for all time or for finite displacements.
+
+**Derivation.** Expand $\nabla\Omega$ of S23 to first order about a point where it vanishes; the Coriolis terms are already linear. Insert $e^{\lambda t}$ and require a non-trivial solution of the 2×2 system: $(\lambda^2-\Omega_{xx})(\lambda^2-\Omega_{yy})-(\Omega_{xy}+2\lambda)(\Omega_{xy}-2\lambda)=0$, which is the quartic above. The first row gives the eigenvector.
+
+![The two L4 frequencies and the growth rate against the mass fraction, from the C eigenvalue routine](figures/l4-modes.svg)
+
+**Code.** `src/cr3bp.c#cr3bp_hessian`, `src/cr3bp.c#cr3bp_modes`, `src/cr3bp.c#cr3bp_mode_start`.
+
+**Tests.** `test_stability` compares the analytic second derivatives with central differences of the acceleration at five mass fractions (within 1e−6), checks the closed forms at L4 and that L5 has the same modes.
+
+## S31 — L1, L2 and L3 are saddles
+
+**Statement.** At each collinear point $\Omega_{xy}=0$, $\Omega_{xx}>0$ and $\Omega_{yy}<0$, so the quartic has one positive and one negative root $s$: one growing/decaying pair and one oscillation, at every mass fraction. At $\mu=1/101$ the growth rates are 2.9023, 2.1806 and 0.1607 per T for L1, L2, L3.
+
+**Assumptions and limits.** As S30. A saddle still has bounded linear orbits (the oscillating mode); only a generic nudge leaves. The measured run stays in the linear range (1e−8 L to about 6e−5 L).
+
+**Derivation.** On the axis, with $A=(1-\mu)/r_1^3+\mu/r_2^3$, $\Omega_{xx}=1+2A$ and $\Omega_{yy}=1-A$. Equilibrium on the axis forces $A>1$ at all three points, so the constant term $\Omega_{xx}\Omega_{yy}<0$ and the two roots $s$ have opposite signs.
+
+![Distance from L1, L2, L3 along the growing eigenvector: straight lines on a log scale](figures/collinear-growth.svg)
+
+**Code.** `src/cr3bp.c#cr3bp_modes`; `src/lagrange.c#lab_measured_growth` integrates the pure mode for 3 T.
+
+**Tests.** `test_stability`: for 15 points (L1–L3 × five mass fractions from 0.001 to 0.5) the integrated e-folding rate matches the eigenvalue within 1.85e−5 relative. Values at the default mass fraction are in [stability.csv](figures/stability.csv).
+
+## S32 — Libration about L4 and L5
+
+**Statement.** At L4/L5, $\Omega_{xx}=3/4$, $\Omega_{yy}=9/4$, $\Omega_{xy}=\pm\tfrac{3\sqrt3}{4}(1-2\mu)$, so
+
+$$\omega^4-\omega^2+\tfrac{27}{4}\mu(1-\mu)=0 .$$
+
+Below Routh's limit (S33) there are two real frequencies: a short-period mode near the orbital period and a long-period mode. At $\mu=1/101$: periods 6.5197 T and 23.5396 T.
+
+**Assumptions and limits.** As S30. A finite displacement mixes the modes and stretches along the orbit into a "tadpole": the lab's 0.01 L nudge ends 0.113 L from L4 after 60 T, bounded but far outside the linear range.
+
+**Derivation.** Both primaries are at distance 1 from L4, at $(\mp\tfrac12,-\tfrac{\sqrt3}{2})$ relative to it. Summing the two point-mass Hessians with weights $1-\mu$ and $\mu$, plus the identity from the centrifugal term, gives the three values. Insert them in S30 with $s=-\omega^2$.
+
+![eta(t) for the two pure modes started on their eigenvectors](figures/l4-libration.svg)
+
+**Code.** `src/cr3bp.c#cr3bp_modes`, `src/cr3bp.c#cr3bp_mode_start`; `src/lagrange.c#lab_measured_period` times successive upward zero crossings of $\eta$.
+
+**Tests.** `test_stability`: measured periods 6.519731926 T and 23.539610506 T against $2\pi/\omega$ = 6.519728535 T and 23.539634264 T (relative differences 5.2e−7 and 1.0e−6); the quartic residual is below 1e−13.
+
+## S33 — Routh's condition
+
+**Statement.** L4 and L5 are linearly stable only if $\mu(1-\mu)<1/27$, that is
+
+$$\mu<\mu_R=\tfrac12\left(1-\sqrt{23/27}\right)=0.0385208965 .$$
+
+Above it the two frequencies have merged and the motion is a growing spiral. At $\mu=0.05$ the rate is 0.1820 per T.
+
+**Assumptions and limits.** Linear criterion in the planar circular problem. At exactly $\mu_R$, and at certain resonant mass fractions below it, nonlinear terms decide; this lab does not test those cases.
+
+**Derivation.** The quadratic in $\omega^2$ of S32 has real roots only when its discriminant $1-27\mu(1-\mu)\ge0$. Solving the equality for the smaller root gives $\mu_R$. Past it $s$ is complex and $\mathrm{Re}\,\lambda=\sqrt{(|s|+\mathrm{Re}\,s)/2}>0$.
+
+![A 1e-8 L nudge at L4 stays put below the limit and spirals away above it](figures/l4-routh.svg)
+
+**Code.** `src/cr3bp.c#cr3bp_routh`, `src/cr3bp.c#cr3bp_modes`; `src/lagrange.c#lab_measured_drift`; the browser slider calls `src/lagrange.c#lab_set_mu`.
+
+**Tests.** `test_stability`: bisection for the first mass fraction with a non-zero growth rate lands within 1e−12 of the closed form. After a 1e−8 L nudge, 70 T: at $\mu=0.03$ the distance never exceeds 1.92e−7 L; at $\mu=0.05$ it reaches 0.0177 L, with a fitted rate 0.18253 per T against 0.18199 (0.3 %). `test_lab_mu` runs the lab at $\mu=0.3$ until it stops more than 0.1 L from L4.
+
+## S34 — The Hill radius is where L1 and L2 sit, approximately
+
+**Statement.** For small $\mu$ the distances from the secondary to L1 and L2 tend to the Hill radius $r_H=(\mu/3)^{1/3}$; to next order $d\approx r_H(1\mp r_H/3)$, L1 inside and L2 outside.
+
+**Assumptions and limits.** An asymptotic statement. At $\mu=1/101$, $r_H=0.148886$ L while L1 and L2 are at 0.141475 L and 0.156221 L (−4.98 %, +4.93 %). The collinear roots of S24, not this formula, are what the code uses.
+
+**Derivation.** Near the secondary write $x=1-\mu\pm d$ and expand the primary's pull and the centrifugal term to first order in $d$: their difference is the tidal term $3d$. Balance with the secondary's $\mu/d^2$: $3d^3=\mu$.
+
+![Distances of L1 and L2 from the secondary against the Hill radius](figures/hill.svg)
+
+**Code.** `src/cr3bp.c#cr3bp_lagrange`; `src/lagrange.c#lab_value` reports `LAB_HILL` to the browser.
+
+**Tests.** `test_equilibria` (ratio within 0.1 % at $\mu$ = 1e−9) and `test_stability` (within 8 % and bracketing at 1/101; the next-order formula within 0.002 L).
+
 ## Sources
 
 Consulted 2026-11-13; derivations and figures above are written and generated for this implementation.

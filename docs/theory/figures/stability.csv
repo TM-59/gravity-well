@@ -1,0 +1,12 @@
+quantity,theory,measured,relative_difference
+L1 growth rate [1/T] (mu=1/101),2.902343264,2.902384029,1.40e-05
+L2 growth rate [1/T] (mu=1/101),2.180585848,2.180580774,2.33e-06
+L3 growth rate [1/T] (mu=1/101),0.160680222,0.160680345,7.66e-07
+L4 short period [T] (mu=1/101),6.519728535,6.519731926,5.20e-07
+L4 long period [T] (mu=1/101),23.539634264,23.539610506,1.01e-06
+L4 growth rate [1/T] (mu=0.05 above Routh),0.181985690,0.182531776,3.00e-03
+L4 largest distance in 70 T from 1e-8 L (mu=0.03 below Routh),bounded,1.924e-07,
+L4 largest distance in 70 T from 1e-8 L (mu=0.05 above Routh),unbounded,1.770e-02,
+Routh critical mass fraction,0.038520896505,,
+L1 distance from secondary [L] vs Hill radius (mu=1/101),0.148885518,0.141474913,4.98e-02
+L2 distance from secondary [L] vs Hill radius (mu=1/101),0.148885518,0.156220686,4.93e-02
