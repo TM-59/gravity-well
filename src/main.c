@@ -9,6 +9,7 @@
 
 #include "gif.h"
 #include "orbit.h"
+#include "lagrange.h"
 #include "render.h"
 #include "svg.h"
 
@@ -197,6 +198,7 @@ static int play(void)
 
 int main(int argc, char **argv)
 {
+    if (argc > 1 && strcmp(argv[1], "--lagrange") == 0) return lagrange_output(argc > 2 ? argv[2] : ".");
     if (argc > 1 && strcmp(argv[1], "--headless") == 0) return headless(argc > 2 ? argv[2] : ".");
     if (argc > 1 && strcmp(argv[1], "--snapshot") == 0) return snapshot();
     if (argc > 1 && strcmp(argv[1], "--gif") == 0) return gif_demo(argc > 2 ? argv[2] : "demo.gif");

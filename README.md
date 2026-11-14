@@ -4,7 +4,7 @@
 船首を向けても進路はすぐに変わらない。短い噴射が軌道を変え、その後は慣性と重力で進む。
 velocity-Verlet 積分による同じ C の計算を、端末とブラウザーの両方で実行できる。
 
-**理論の手引き / Theory handbook**: [docs/theory/](docs/theory/README.md) — 22 statements(重力・ケプラーの法則・vis-viva・Hohmann 遷移・velocity Verlet の性質・The Ice Run の規則)を、式・前提・導出・実装箇所・検査と図つきで説明する。図と実測値は `make theory-figs` で再生成、`make theory-check` で対応表を検査。
+**理論の手引き / Theory handbook**: [docs/theory/](docs/theory/README.md) — 34 statements(重力・ケプラーの法則・vis-viva・Hohmann 遷移・velocity Verlet・The Ice Run・回転座標系の制限三体問題)を、式・前提・導出・実装箇所・検査と図つきで説明する。図と実測値は `make theory-figs` で再生成、`make theory-check` で対応表を検査。
 
 ![ブラウザー観測画面。独自原画、目盛り、速度矢印、無次元の物理量を表示](docs/images/observatory.jpg)
 
@@ -24,6 +24,8 @@ make story-check              # 全行を作り直してバイト一致を確認
 make plots                    # docs の CSV / SVG / GIF を再生成
 make theory-figs              # docs/theory の図と実測値の表を再生成
 make theory-check             # 手引きの対応表(文 → 頁 → 図 → 関数 → テスト)を検査
+make lagrange-plots           # L1〜L5・ヤコビ定数・ゼロ速度曲線の CSV/SVG
+./gravity-well --lagrange .   # 同じ出力を指定した既存ディレクトリへ
 ```
 
 ブラウザー版は Emscripten の `emcc` と Python 3.14 を PATH に置いて実行する。
@@ -37,6 +39,50 @@ make play
 手動航行は `a` / `d` で旋回、`w` を押して噴射。The Ice Run は `w` で増速、`s` で減速、`m` で円軌道合わせ。
 `p` で一時停止。画面のボタンも押し続けられる。
 端末版は `q` で終了する。音声・保存・外部 API は無い。
+
+## Lagrange laboratory(回転座標系の制限三体問題)
+
+「Explore Lagrange points」から、重心とともに回る別の観測画面へ進む。
+L1〜L5の座標表、ゼロ速度曲線、到達できない灰色領域、軌道に沿ったヤコビ定数の誤差を見る。
+「L4 libration」は正三角形の点から少しずらした軌道、「L1 passage」は2天体の間を通過する軌道。
+Pause/Reset と L1 の開いた/閉じた曲線の比較ができる。比較曲線の C と実軌道の C は別々に表示する。
+質量比 μ のスライダー(0.001〜0.5)で5点・ゼロ速度曲線・線形安定性(L4 の秤動周期、成長率、Routh の限界 0.03852)が変わり、
+「View」で同じ C の軌道を回転座標系と慣性系で切り替えて見る。
+
+![L1通過とヤコビ定数の保存。C/WASMから描いた実画面](docs/images/lagrange-1440x1000.png)
+
+![同じL4付近の軌道を慣性系で見た実画面](docs/images/lagrange-inertial-1440x1000.png)
+
+主星間隔=1 L・全GM=1 L³/T²・角速度=1 T⁻¹、既定の質量比は1:100(mu=1/101)。
+両天体が重心のまわりを回る標準モデルで、星を固定した従来の手動航行とは別の計算。
+軟化は使わず、コリオリ項を含む速度依存の加速度を RK4・刻み0.0025 Tで進める。
+60 Tで観測終了。近接や誤差1e−6超のステップは受理せず、最後の受理状態で停止する。
+
+| 検査 | 理論・独立基準 | 実測 |
+|---|---|---|
+| L1〜L3(6質量比) | 独立した長倍精度Newton法の根との差≤1e−6 L | 最大2.22e−16 L |
+| L4・L5 | (1/2−mu, ±sqrt(3)/2)・両天体まで距離1 | 三角形・ヤコビ定数の式を1e−14以内で照合 |
+| Cの保存(3軌道×60 T) | 最大絶対誤差≤1e−6 L²/T² | 9.36e−8 |
+| ゼロ速度曲線の端点 | 2Ω−C=0 | 最大残差7.55e−15 |
+| 3解像度のRK4位置差比 | 4次精度の差比17 | 17.40 |
+| native/WASM(100行×21値) | 同時刻・同初期条件 | 最大相対差1.44e−15 |
+| 回転系 ⇄ 慣性系 | 往復で元に戻る、C=−2(E−h) | 往復8.9e−16、差5.3e−15 |
+| 慣性系で独立に積分(見かけの力なし、20 T) | 回転系の軌道を変換した位置 | 差1.29e−8 L |
+| L1〜L3 の成長率(5質量比×3点) | 線形化の固有値 | 相対差 最大1.85e−5(mu=1/101: 2.9023, 2.1806, 0.1607 /T) |
+| L4 の秤動周期(短・長) | 2π/ω = 6.519729, 23.539634 T | 6.519732, 23.539611 T(相対差5.2e−7, 1.0e−6) |
+| Routh の臨界質量比 | (1−√(23/27))/2 = 0.0385208965 | 成長率が0でなくなる点の二分法と1e−12以内 |
+| L4 を1e−8 L ずらして70 T | mu=0.03 は有界、mu=0.05 は成長率0.18199 /T | 最大1.92e−7 L / 0.0177 L へ発散、傾き0.18253(0.3%) |
+| Hill 半径 (mu/3)^(1/3) = 0.148886 L | 小質量比での L1・L2 の距離の近似 | L1 0.141475(−4.98%)、L2 0.156221(+4.93%) |
+
+![C(L1)の上下で変わる通過口。灰色は禁制領域](docs/theory/figures/zero-velocity.svg)
+
+![L4 の2つの振動数と成長率。Routh の限界で合流する](docs/theory/figures/l4-modes.svg)
+
+![限界の下では留まり、上では螺旋状に離れる](docs/theory/figures/l4-routh.svg)
+
+図・座標表・1,501時点の軌道CSV・ヤコビ誤差グラフは `make lagrange-plots` で再生成する。
+理論と制約は[第5頁](docs/theory/05-rotating-three-body.md)。曲線の形は有限格子による近似であり、
+通過口が開いても、どんな初期条件でも通れるという意味ではない。
 
 ## The Ice Run(物語の航行)
 
@@ -67,8 +113,8 @@ Lamp Quay の管制係 Pell は、水を半分に減らして待っている。
 発火順、効き目の有無、道ごとの差、区間ごとの危機を `docs/narrative/` に書き出す。
 `make test` は数値を `[mech]` で、重い場面を `[quiet]` で確かめる。
 bench の行を再実行し、ファイルと一字一句一致することも求める。
-行は libm の丸めまで一致させるため、Dockerfile の Debian 13 でビルドする。
-CI も `docker build .` で同じ環境を使う。
+行は libm の丸めまで一致させる。ローカルは互換コンパイラで `make story-check` を通し、
+既存 CI の Debian 13 でも同じファイルを照合する。
 
 ## 観測画面で分かること
 
@@ -126,8 +172,9 @@ npx playwright install chromium
 make smoke
 ```
 
-36項目成功、console error / 外部通信とも0件。The Ice Run を実キーと実クリックで両方の結末まで航行する検査を含む。
-WASM 17,055 B、原画込みの初期ダウンロード349,448 B。
+既存航行の36項目に加え、Lagrange画面のnative/WASM照合・実操作・PC/スマートフォン縦横・停止/復帰を検査する。
+The Ice Run を実キーと実クリックで両方の結末まで航行する検査を含む。
+各観測画面のWASMと原画を合わせた配布容量は `make web` が全ファイルから導出し、10,000,000 B以下を強制する。
 要件は [docs/requirements.md](docs/requirements.md)、構成は [docs/design.md](docs/design.md)。
 詳細は [検証記録](docs/validation.md)、[機械記録](docs/validation.json)、[原画の生成指示と採否](docs/art-direction.md)。
 人間の初見試遊、実スマートフォン、各ブラウザーでの操作は未検証。公開配信は行っていない。
@@ -136,6 +183,6 @@ WASM 17,055 B、原画込みの初期ダウンロード349,448 B。
 ![半径](docs/radius.svg)
 ![エネルギー誤差](docs/energy.svg)
 
-後続は [Lagrange 点 #2](https://github.com/TM-59/gravity-well/issues/2)、
-[重力アシスト #3](https://github.com/TM-59/gravity-well/issues/3)。
+Lagrange点は [M2 #2](https://github.com/TM-59/gravity-well/issues/2)で追加。
+後続は[重力アシスト #3](https://github.com/TM-59/gravity-well/issues/3)。
 [C 物理シリーズ](https://github.com/TM-59/algo-vis-panel/issues/6)の一作。MIT licensed.
