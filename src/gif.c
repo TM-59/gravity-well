@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MIN_CODE 4
-#define CLEAR (1 << MIN_CODE)
-#define EOI (CLEAR + 1)
+#define MIN_CODE 4U
+#define CLEAR (1U << MIN_CODE)
+#define EOI (CLEAR + 1U)
 #define HASH 8209
 
 struct Gif {
@@ -15,15 +15,16 @@ struct Gif {
     unsigned char block[255];
     int blen;
     unsigned long acc;
-    int nbits;
+    unsigned nbits;
+    unsigned code_bits; /* width of the next LZW code */
     int hkey[HASH];
     int hval[HASH];
 };
 
-static void put16(FILE *f, int v)
+static void put16(FILE *f, unsigned v)
 {
-    (void)fputc(v & 255, f);
-    (void)fputc((v >> 8) & 255, f);
+    (void)fputc((int)(v & 255U), f);
+    (void)fputc((int)((v >> 8U) & 255U), f);
 }
 
 Gif *gif_open(const char *path, int width, int height, unsigned char palette[GIF_COLOURS][3],
@@ -42,8 +43,8 @@ Gif *gif_open(const char *path, int width, int height, unsigned char palette[GIF
     g->h = height;
     g->delay = delay_cs;
     (void)fwrite("GIF89a", 1, 6, g->f);
-    put16(g->f, width);
-    put16(g->f, height);
+    put16(g->f, (unsigned)width);
+    put16(g->f, (unsigned)height);
     (void)fputc(0xB3, g->f); /* global table, 16 colours */
     (void)fputc(0, g->f);
     (void)fputc(0, g->f);
@@ -64,14 +65,15 @@ static void emit_byte(Gif *g, int b)
     }
 }
 
-static void put_code(Gif *g, int code, int size)
+/* Appends one code of the current width (g->code_bits) to the bit stream. */
+static void put_code(Gif *g, unsigned code)
 {
     g->acc |= (unsigned long)code << g->nbits;
-    g->nbits += size;
-    while (g->nbits >= 8) {
-        emit_byte(g, (int)(g->acc & 255));
-        g->acc >>= 8;
-        g->nbits -= 8;
+    g->nbits += g->code_bits;
+    while (g->nbits >= 8U) {
+        emit_byte(g, (int)(g->acc & 255U));
+        g->acc >>= 8U;
+        g->nbits -= 8U;
     }
 }
 
@@ -108,50 +110,53 @@ int gif_frame(Gif *g, const unsigned char *pixels, int hold_cs)
 {
     int delay = hold_cs > 0 ? hold_cs : g->delay;
     (void)fwrite("\x21\xF9\x04\x04", 1, 4, g->f);
-    put16(g->f, delay);
+    put16(g->f, (unsigned)delay);
     (void)fputc(0, g->f);
     (void)fputc(0, g->f);
     (void)fputc(0x2C, g->f);
-    put16(g->f, 0);
-    put16(g->f, 0);
-    put16(g->f, g->w);
-    put16(g->f, g->h);
+    put16(g->f, 0U);
+    put16(g->f, 0U);
+    put16(g->f, (unsigned)g->w);
+    put16(g->f, (unsigned)g->h);
     (void)fputc(0, g->f);
-    (void)fputc(MIN_CODE, g->f);
+    (void)fputc((int)MIN_CODE, g->f);
 
-    int n = g->w * g->h, size = MIN_CODE + 1, next = EOI + 1;
+    int n = g->w * g->h;
+    unsigned next = EOI + 1U;
     g->acc = 0;
     g->nbits = 0;
+    g->code_bits = MIN_CODE + 1U;
     g->blen = 0;
     reset_table(g);
-    put_code(g, CLEAR, size);
-    int prefix = pixels[0] & 15;
+    put_code(g, CLEAR);
+    unsigned prefix = pixels[0] & 15U;
     for (int i = 1; i < n; i++) {
-        int c = pixels[i] & 15, key = (prefix << 8) | c, hit = find(g, key);
+        unsigned c = pixels[i] & 15U;
+        int key = (int)((prefix << 8U) | c), hit = find(g, key);
         if (hit >= 0) {
-            prefix = hit;
+            prefix = (unsigned)hit;
             continue;
         }
-        put_code(g, prefix, size);
-        *lookup(g, key) = next++;
-        if (next == 4096) {
-            put_code(g, CLEAR, size);
+        put_code(g, prefix);
+        *lookup(g, key) = (int)next++;
+        if (next == 4096U) {
+            put_code(g, CLEAR);
             reset_table(g);
-            size = MIN_CODE + 1;
-            next = EOI + 1;
-        } else if (next > (1 << size)) {
-            size++;
+            g->code_bits = MIN_CODE + 1U;
+            next = EOI + 1U;
+        } else if (next > (1U << g->code_bits)) {
+            g->code_bits++;
         }
         prefix = c;
     }
-    put_code(g, prefix, size);
+    put_code(g, prefix);
     /* the decoder adds one more entry after the last code, which may widen the next code */
-    if (++next > (1 << size) && size < 12) {
-        size++;
+    if (++next > (1U << g->code_bits) && g->code_bits < 12U) {
+        g->code_bits++;
     }
-    put_code(g, EOI, size);
-    if (g->nbits > 0) {
-        emit_byte(g, (int)(g->acc & 255));
+    put_code(g, EOI);
+    if (g->nbits > 0U) {
+        emit_byte(g, (int)(g->acc & 255U));
     }
     if (g->blen > 0) {
         (void)fputc(g->blen, g->f);
@@ -210,7 +215,7 @@ static const unsigned char *glyph(char ch)
     }
 }
 
-void gif_text_size(const char *text, int scale, int *width, int *height)
+GifSize gif_text_size(const char *text, int scale)
 {
     int cols = 0, rows = 0, cur = 0;
     for (const char *p = text; *p; p++) {
@@ -230,54 +235,71 @@ void gif_text_size(const char *text, int scale, int *width, int *height)
             cols = cur;
         }
     }
-    *width = cols * 6 * scale;
-    *height = rows * 9 * scale;
+    GifSize size = {.width = cols * 6 * scale, .height = rows * 9 * scale};
+    return size;
 }
 
-static void fill(unsigned char *px, int w, int h, int x0, int y0, int x1, int y1, int colour)
+typedef struct {
+    unsigned char *px;
+    int w, h;
+} Canvas;
+
+/* A pixel rectangle [x0, x1) x [y0, y1). */
+typedef struct {
+    int x0, y0, x1, y1;
+} Box;
+
+/* One character at column `col` and row `row` of the text grid, `scale` pixels per glyph dot. */
+typedef struct {
+    int col, row, scale;
+    char ch;
+} Cell;
+
+static void fill(const Canvas *cv, Box b, int colour)
 {
-    for (int y = y0; y < y1 && y < h; y++) {
-        for (int x = x0; x < x1 && x < w; x++) {
+    for (int y = b.y0; y < b.y1 && y < cv->h; y++) {
+        for (int x = b.x0; x < b.x1 && x < cv->w; x++) {
             if (x >= 0 && y >= 0) {
-                px[y * w + x] = (unsigned char)colour;
+                cv->px[y * cv->w + x] = (unsigned char)colour;
             }
         }
     }
 }
 
-static void draw_cell(unsigned char *px, int w, int h, int cx, int cy, int s, char ch, int colour)
+static void draw_cell(const Canvas *cv, const Cell *cell, int colour)
 {
-    int x0 = cx * 6 * s, y0 = cy * 9 * s;
+    int s = cell->scale, x0 = cell->col * 6 * s, y0 = cell->row * 9 * s;
+    char ch = cell->ch;
     switch (ch) {
     case ' ':
         return;
     case '#':
-        fill(px, w, h, x0, y0, x0 + 6 * s, y0 + 9 * s, colour);
+        fill(cv, (Box){x0, y0, x0 + 6 * s, y0 + 9 * s}, colour);
         return;
     case '=':
-        fill(px, w, h, x0, y0 + 3 * s, x0 + 6 * s, y0 + 6 * s, colour);
+        fill(cv, (Box){x0, y0 + 3 * s, x0 + 6 * s, y0 + 6 * s}, colour);
         return;
     case '_':
-        fill(px, w, h, x0, y0 + 8 * s, x0 + 6 * s, y0 + 9 * s, colour);
+        fill(cv, (Box){x0, y0 + 8 * s, x0 + 6 * s, y0 + 9 * s}, colour);
         return;
     case '|':
-        fill(px, w, h, x0 + 2 * s, y0, x0 + 4 * s, y0 + 9 * s, colour);
+        fill(cv, (Box){x0 + 2 * s, y0, x0 + 4 * s, y0 + 9 * s}, colour);
         return;
     case '.':
-        fill(px, w, h, x0 + 2 * s, y0 + 4 * s, x0 + 4 * s, y0 + 6 * s, colour);
+        fill(cv, (Box){x0 + 2 * s, y0 + 4 * s, x0 + 4 * s, y0 + 6 * s}, colour);
         return;
     default:
         break;
     }
     const unsigned char *rows = glyph(ch);
     if (!rows) {
-        fill(px, w, h, x0 + 2 * s, y0 + 3 * s, x0 + 4 * s, y0 + 5 * s, colour);
+        fill(cv, (Box){x0 + 2 * s, y0 + 3 * s, x0 + 4 * s, y0 + 5 * s}, colour);
         return;
     }
     for (int r = 0; r < 7; r++) {
         for (int b = 0; b < 5; b++) {
-            if (rows[r] & (16 >> b)) {
-                fill(px, w, h, x0 + b * s, y0 + (r + 1) * s, x0 + (b + 1) * s, y0 + (r + 2) * s,
+            if (rows[r] & (16U >> (unsigned)b)) {
+                fill(cv, (Box){x0 + b * s, y0 + (r + 1) * s, x0 + (b + 1) * s, y0 + (r + 2) * s},
                      colour);
             }
         }
@@ -288,14 +310,16 @@ void gif_draw_text(unsigned char *pixels, int width, int height, const char *tex
                    int (*colour_of)(char))
 {
     memset(pixels, 0, (size_t)width * (size_t)height);
-    int cx = 0, cy = 0;
+    const Canvas cv = {.px = pixels, .w = width, .h = height};
+    Cell cell = {.col = 0, .row = 0, .scale = scale, .ch = 0};
     for (const char *p = text; *p; p++) {
         if (*p == '\n') {
-            cy++;
-            cx = 0;
+            cell.row++;
+            cell.col = 0;
             continue;
         }
-        draw_cell(pixels, width, height, cx, cy, scale, *p, colour_of(*p));
-        cx++;
+        cell.ch = *p;
+        draw_cell(&cv, &cell, colour_of(*p));
+        cell.col++;
     }
 }

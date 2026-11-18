@@ -30,18 +30,20 @@ enum {
 };
 
 /* Numeric story effects, one bit each, so the bench can remove them one by one. */
-enum {
-    VE_DOCK = 1u << 0,  /* Ilse adds what the dock can spare, and her count steadies the readout */
-    VE_ROUTE = 1u << 1, /* the near buoy: a short climb; the far buoy: a long climb, and its keeper
-                           sends spare fuel */
-    VE_CACHE = 1u << 2, /* the buoy's fuel cache */
-    VE_FLARE = 1u << 3, /* the flare: in leg 4 the apsis readout wobbles more and fuel boils off */
-    VE_POD = 1u << 4, /* turning back: leg 4 goes down to Ilse's fuel pod; grapple it, wait while it
-                         pumps */
-    VE_SILENCE = 1u
-        << 5, /* Ilse's count is gone for the last leg, and a tow now drags the tug back */
-    VE_ALL = (1u << 6) - 1u
-};
+/* Macros, not an enum: C enumerators are int, and the masks are combined with unsigned bit ops. */
+/* Ilse adds what the dock can spare, and her count steadies the readout */
+#define VE_DOCK (1U << 0U)
+/* the near buoy: a short climb; the far buoy: a long climb, and its keeper sends spare fuel */
+#define VE_ROUTE (1U << 1U)
+/* the buoy's fuel cache */
+#define VE_CACHE (1U << 2U)
+/* the flare: in leg 4 the apsis readout wobbles more and fuel boils off */
+#define VE_FLARE (1U << 3U)
+/* turning back: leg 4 goes down to Ilse's fuel pod; grapple it, wait while it pumps */
+#define VE_POD (1U << 4U)
+/* Ilse's count is gone for the last leg, and a tow now drags the tug back */
+#define VE_SILENCE (1U << 5U)
+#define VE_ALL ((1U << 6U) - 1U)
 
 enum { VC_COAST, VC_RAISE, VC_LOWER, VC_MATCH };
 enum { VB_NONE, VB_CLEAR, VB_TOW, VB_MISS };

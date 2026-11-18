@@ -194,7 +194,7 @@ static int play(void)
     }
     tcgetattr(STDIN_FILENO, &saved);
     struct termios raw = saved;
-    raw.c_lflag &= ~(ICANON | ECHO);
+    raw.c_lflag &= ~((tcflag_t)ICANON | (tcflag_t)ECHO);
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);

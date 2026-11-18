@@ -46,11 +46,11 @@ static void start(Voyage *v, Pilot *p, unsigned effects)
 
 static char *slurp(const char *path)
 {
-    static char text[2][1 << 17];
-    static int slot;
+    static char text[2][1U << 17U];
+    static unsigned slot;
     FILE *f = fopen(path, "rb");
     assert(f);
-    char *buf = text[slot++ & 1];
+    char *buf = text[slot++ & 1U];
     size_t len = fread(buf, 1, sizeof text[0] - 1, f);
     (void)fclose(f); /* read only */
     buf[len] = 0;

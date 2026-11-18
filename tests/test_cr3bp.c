@@ -94,8 +94,9 @@ static void test_jacobi_and_order(void)
     Ship initial = {0.5, 0.3, -0.2, 0.3}, end[3];
     for (int i = 0; i < 3; i++) {
         end[i] = initial;
-        for (int k = 0; k < 100 * (1 << i); k++) {
-            cr3bp_step(mu, &end[i], 0.01 / (1 << i));
+        int halvings = (int)(1U << (unsigned)i);
+        for (int k = 0; k < 100 * halvings; k++) {
+            cr3bp_step(mu, &end[i], 0.01 / halvings);
         }
     }
     double e1 = hypot(end[0].x - end[2].x, end[0].y - end[2].y);

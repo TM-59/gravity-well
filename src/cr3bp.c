@@ -108,7 +108,7 @@ size_t cr3bp_contours(double mu, double c, double extent, int grid, ZeroSegment 
             int valid = 1;
             for (int k = 0; k < 4; k++) {
                 v[k].f = 2 * cr3bp_potential(mu, v[k].x, v[k].y) - c;
-                valid &= isfinite(v[k].f);
+                valid = valid && isfinite(v[k].f);
             }
             if (!valid) {
                 continue;
