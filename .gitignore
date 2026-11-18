@@ -13,3 +13,5 @@ story_bench
 theory_figs
 test_cr3bp
 test-results/
+.tm-ctest/
+.tm-home/

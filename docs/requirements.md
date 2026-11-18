@@ -56,3 +56,20 @@
 ## 未検証
 
 人間の初見試遊、実スマートフォン(Safari)、各ブラウザー、実 GPU は未検証。公開配信はしていない。
+
+## 要件 ID とテストの対応(M61)
+
+`make check` の trace は、下の ID を名前に持つ CTest の testcase(`tests/ctest/CMakeLists.txt`)だけを集める。
+対応は名前の宣言で、要件を満たすことの意味的な証明ではない。基準は上の「受入条件」。
+
+### REQ-orbit-physics
+軌道・保存則・手動航行の一致・Hohmann の 2 噴射(第 1 噴射 Δv=0.154706、Web 実演の最終半径 2.000127)。
+対応: `test_orbit`・`test_flight`。
+
+### REQ-ice-run
+The Ice Run の場面順・物語の数値・重い場面の静けさ・2 つの選択の得と損、`docs/narrative/` の代表行のバイト一致。
+対応: `test_voyage`・`story_bench --check`。
+
+### REQ-rotating-frame
+制限三体問題: L1〜L3 が独立した根と 1e−6 以内、L4/L5 が正三角形、3 軌道各 60 T でヤコビ定数の誤差 1e−6 以下。
+対応: `test_cr3bp`。
