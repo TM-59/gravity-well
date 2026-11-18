@@ -29,7 +29,7 @@ static const char *path(const char *name)
 static void plot(const char *name, const char *title, const char *xl, const char *yl, int count,
                  const Series *s, int ns)
 {
-    if (svg_plot(path(name), title, xl, yl, xs, count, s, ns) != 0) {
+    if (svg_plot(path(name), &(Chart){title, xl, yl}, xs, count, s, ns) != 0) {
         (void)fprintf(stderr, "cannot write %s\n", name);
         exit(1);
     }
@@ -71,18 +71,30 @@ static void fig_gravity(void)
     int n = 186;
     for (int i = 0; i < n; i++) {
         double r = 0.3 + 0.02 * i, ax, ay;
-        gravity(&w, 0.0, r, 0.0, &ax, &ay);
+        {
+            const Vec2 pull = gravity(&w, 0.0, (Vec2){r, 0.0});
+            ax = pull.x;
+            ay = pull.y;
+        }
         xs[i] = (float)r;
         ya[i] = (float)hypot(ax, ay);
         yb[i] = (float)(1.0 / (r * r));
     }
     double ax, ay;
-    gravity(&w, 0.0, 0.6, 0.8, &ax, &ay);
+    {
+        const Vec2 pull = gravity(&w, 0.0, (Vec2){0.6, 0.8});
+        ax = pull.x;
+        ay = pull.y;
+    }
     value("accel-r1", "size of the star's pull at (0.6, 0.8), r = 1 (theory GM / r^2)",
           hypot(ax, ay), 1.0);
     value("accel-direction",
           "its direction: ax / ay at (0.6, 0.8) (theory x / y, towards the star)", ax / ay, 0.75);
-    gravity(&w, 0.0, 0.1, 0.0, &ax, &ay);
+    {
+        const Vec2 pull = gravity(&w, 0.0, (Vec2){0.1, 0.0});
+        ax = pull.x;
+        ay = pull.y;
+    }
     value("accel-softening-r0.1",
           "pull at r = 0.1, where the softening 1e-6 matters most before the crash radius (theory "
           "GM / r^2)",
@@ -98,7 +110,7 @@ static double measured_period(const World *w, double r, double dt)
     Ship s = tangential(r, circular_speed(w, r));
     double t = 0.0, prev_y = s.y;
     for (int k = 0; k < 4000000; k++) {
-        orbit_step(w, &s, t, 0.0, 0.0, dt);
+        orbit_step(w, &s, t, (Burn){0.0, 0.0}, dt);
         t += dt;
         if (prev_y < 0.0 && s.y >= 0.0 && s.x > 0.0) {
             return t - dt * s.y / (s.y - prev_y);
@@ -168,7 +180,7 @@ static void fig_ellipse(void)
         vis_err = fmax(vis_err, fabs(sp / vv - 1.0));
         h_err = fmax(h_err, fabs(ship_ang_momentum(&s) / h0 - 1.0));
         e_err = fmax(e_err, fabs(ship_energy(&w, &s) / e0 - 1.0));
-        orbit_step(&w, &s, t, 0.0, 0.0, dt);
+        orbit_step(&w, &s, t, (Burn){0.0, 0.0}, dt);
         t += dt;
         /* Area of the thin triangle swept in this step, over dt. */
         double rate = 0.5 * fabs(before.x * s.y - before.y * s.x) / dt;
@@ -235,7 +247,7 @@ static void fig_ellipse(void)
             yc[n] = (float)hypot(s.x, s.y);
             n++;
         }
-        orbit_step(&w, &s, t, 0.0, 0.0, dt);
+        orbit_step(&w, &s, t, (Burn){0.0, 0.0}, dt);
         t += dt;
         area += 0.5 * fabs(before.x * s.y - before.y * s.x);
     }
@@ -262,7 +274,7 @@ static void fig_escape(void)
             n++;
         }
         for (int j = 0; j < 3; j++) {
-            orbit_step(&w, &s[j], k * dt, 0.0, 0.0, dt);
+            orbit_step(&w, &s[j], k * dt, (Burn){0.0, 0.0}, dt);
         }
     }
     Ship e = tangential(1.0, ve);
@@ -286,11 +298,19 @@ static void fig_moon(void)
     World w = world_default(), off = star_only();
     double lo = 1e9, hi = 0.0, mx, my, dt = 0.004;
     for (int i = 0; i <= 2000; i++) {
-        moon_position(&w, 0.02 * i, &mx, &my);
+        {
+            const Vec2 moon = moon_position(&w, 0.02 * i);
+            mx = moon.x;
+            my = moon.y;
+        }
         lo = fmin(lo, hypot(mx, my));
         hi = fmax(hi, hypot(mx, my));
     }
-    moon_position(&w, circular_period(&w, 3.0), &mx, &my);
+    {
+        const Vec2 moon = moon_position(&w, circular_period(&w, 3.0));
+        mx = moon.x;
+        my = moon.y;
+    }
     value("moon-radius-span",
           "largest minus smallest distance of the moon from the star over 40 T (theory 0)", hi - lo,
           0.0);
@@ -307,8 +327,8 @@ static void fig_moon(void)
             yb[n] = (float)(ship_energy(&off, &b) - e0);
             n++;
         }
-        orbit_step(&w, &a, k * dt, 0.0, 0.0, dt);
-        orbit_step(&off, &b, k * dt, 0.0, 0.0, dt);
+        orbit_step(&w, &a, k * dt, (Burn){0.0, 0.0}, dt);
+        orbit_step(&off, &b, k * dt, (Burn){0.0, 0.0}, dt);
         worst = fmax(worst, fabs(ship_energy(&w, &a) - e0));
         worst_off = fmax(worst_off, fabs(ship_energy(&off, &b) - e0));
     }
@@ -407,7 +427,7 @@ static void fig_thrust(void)
             n++;
         }
         if (k < 2500) {
-            orbit_step(&w, &s, k * dt, 0.3, 1.0, dt);
+            orbit_step(&w, &s, k * dt, (Burn){0.3, 1.0}, dt);
         }
     }
     value("thrust-dv",
@@ -436,7 +456,7 @@ static void fig_thrust(void)
         double t = 0.0, left = dv;
         while (left > 1e-12) {
             double b = fmin(1.0, left / (thrust * dt));
-            orbit_step(&g, &q, t, atan2(q.vy, q.vx), b, dt);
+            orbit_step(&g, &q, t, (Burn){atan2(q.vy, q.vx), b}, dt);
             left -= b * thrust * dt;
             t += dt;
         }
@@ -548,14 +568,22 @@ static void val_verlet(void)
     Ship s = {1.1, 0.2, -0.1, 0.9}, q = s;
     double t = 3.0, dt = 0.004, heading = 0.7, burn = 0.5, ax, ay;
     double bx = burn * w.thrust * cos(heading), by = burn * w.thrust * sin(heading);
-    gravity(&w, t, q.x, q.y, &ax, &ay);
+    {
+        const Vec2 pull = gravity(&w, t, (Vec2){q.x, q.y});
+        ax = pull.x;
+        ay = pull.y;
+    }
     double hx = q.vx + 0.5 * dt * (ax + bx), hy = q.vy + 0.5 * dt * (ay + by);
     q.x += dt * hx;
     q.y += dt * hy;
-    gravity(&w, t + dt, q.x, q.y, &ax, &ay);
+    {
+        const Vec2 pull = gravity(&w, t + dt, (Vec2){q.x, q.y});
+        ax = pull.x;
+        ay = pull.y;
+    }
     q.vx = hx + 0.5 * dt * (ax + bx);
     q.vy = hy + 0.5 * dt * (ay + by);
-    orbit_step(&w, &s, t, heading, burn, dt);
+    orbit_step(&w, &s, t, (Burn){heading, burn}, dt);
     value("verlet-one-step",
           "largest gap between orbit_step and the half kick, drift, half kick formulas written "
           "out, one step with moon and thrust (theory 0)",
@@ -565,12 +593,12 @@ static void val_verlet(void)
     World g = star_only();
     Ship a = tangential(1.0, 1.2), b = a;
     for (int k = 0; k < 2500; k++) {
-        orbit_step(&g, &b, 0.0, 0.0, 0.0, dt);
+        orbit_step(&g, &b, 0.0, (Burn){0.0, 0.0}, dt);
     }
     b.vx = -b.vx;
     b.vy = -b.vy;
     for (int k = 0; k < 2500; k++) {
-        orbit_step(&g, &b, 0.0, 0.0, 0.0, dt);
+        orbit_step(&g, &b, 0.0, (Burn){0.0, 0.0}, dt);
     }
     value("verlet-reversal",
           "distance from the start after 2500 steps forward, a velocity flip and 2500 steps more "
@@ -593,7 +621,11 @@ static double soft_energy(const World *w, const Ship *s)
 static void euler_step(const World *w, Ship *s, double t, double dt)
 {
     double ax, ay;
-    gravity(w, t, s->x, s->y, &ax, &ay);
+    {
+        const Vec2 pull = gravity(w, t, (Vec2){s->x, s->y});
+        ax = pull.x;
+        ay = pull.y;
+    }
     s->x += dt * s->vx;
     s->y += dt * s->vy;
     s->vx += dt * ax;
@@ -622,7 +654,7 @@ static void fig_energy_drift(void)
             worst_late = fmax(worst_late, dv);
         }
         euler_last = de;
-        orbit_step(&w, &v, k * dt, 0.0, 0.0, dt);
+        orbit_step(&w, &v, k * dt, (Burn){0.0, 0.0}, dt);
         euler_step(&w, &e, k * dt, dt);
     }
     value("verlet-energy-early",
@@ -650,7 +682,7 @@ static void fig_order(void)
     double span = 8.0;
     Ship ref = tangential(1.0, 1.2);
     for (int k = 0; k < 128000; k++) {
-        orbit_step(&w, &ref, 0.0, 0.0, 0.0, span / 128000.0);
+        orbit_step(&w, &ref, 0.0, (Burn){0.0, 0.0}, span / 128000.0);
     }
     for (int i = 0; i < 7; i++) {
         Ship s = tangential(1.0, 1.2);
@@ -658,7 +690,7 @@ static void fig_order(void)
         double e0 = soft_energy(&w, &s), p0 = ship_energy(&w, &s), worst = 0.0, worst_plain = 0.0,
                dt = span / steps;
         for (int k = 0; k < steps; k++) {
-            orbit_step(&w, &s, 0.0, 0.0, 0.0, dt);
+            orbit_step(&w, &s, 0.0, (Burn){0.0, 0.0}, dt);
             worst = fmax(worst, fabs(soft_energy(&w, &s) / e0 - 1.0));
             worst_plain = fmax(worst_plain, fabs(ship_energy(&w, &s) / p0 - 1.0));
         }

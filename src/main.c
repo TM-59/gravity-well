@@ -59,7 +59,7 @@ static int headless(const char *dir)
                           ship_energy(&w, &s));
             i++;
         }
-        orbit_step(&w, &s, t, 0.0, 0.0, dt);
+        orbit_step(&w, &s, t, (Burn){0.0, 0.0}, dt);
         t += dt;
     }
     if (fclose(csv) != 0) {
@@ -67,17 +67,17 @@ static int headless(const char *dir)
     }
     (void)snprintf(path, sizeof path, "%s/track.svg", dir);
     Series tr[] = {{"y", ys, "#1f77b4"}};
-    if (svg_plot(path, "Hohmann transfer path (y vs x)", "x", "y", xs, i, tr, 1)) {
+    if (svg_plot(path, &(Chart){"Hohmann transfer path (y vs x)", "x", "y"}, xs, i, tr, 1)) {
         return 1;
     }
     (void)snprintf(path, sizeof path, "%s/radius.svg", dir);
     Series ra[] = {{"r", rr, "#2ca02c"}};
-    if (svg_plot(path, "Orbital radius during the transfer", "t", "r", tt, i, ra, 1)) {
+    if (svg_plot(path, &(Chart){"Orbital radius during the transfer", "t", "r"}, tt, i, ra, 1)) {
         return 1;
     }
     (void)snprintf(path, sizeof path, "%s/energy.svg", dir);
     Series en[] = {{"E - E0 (after 2nd burn)", er, "#d62728"}};
-    if (svg_plot(path, "Energy error of velocity Verlet", "t", "dE", tt, i, en, 1)) {
+    if (svg_plot(path, &(Chart){"Energy error of velocity Verlet", "t", "dE"}, tt, i, en, 1)) {
         return 1;
     }
     printf("dv1 %.4f, final r %.4f\n", dv1, hypot(s.x, s.y));
@@ -167,7 +167,7 @@ static int gif_demo(const char *path)
                 return 1;
             }
         }
-        orbit_step(&w, &s, t, 0.0, 0.0, dt);
+        orbit_step(&w, &s, t, (Burn){0.0, 0.0}, dt);
         t += dt;
     }
     render_frame(&w, &s, t, atan2(s.vy, s.vx), trail, tlen, buf, sizeof buf);
@@ -233,7 +233,7 @@ static int play(void)
         }
         if (!paused) {
             for (int k = 0; k < 10; k++) {
-                orbit_step(&w, &s, t, heading, burn, 0.004);
+                orbit_step(&w, &s, t, (Burn){heading, burn}, 0.004);
                 t += 0.004;
             }
             if (frame++ % 3 == 0) {
@@ -245,7 +245,11 @@ static int play(void)
             }
         }
         double mx, my;
-        moon_position(&w, t, &mx, &my);
+        {
+            const Vec2 moon = moon_position(&w, t);
+            mx = moon.x;
+            my = moon.y;
+        }
         double r = hypot(s.x, s.y), dm = hypot(s.x - mx, s.y - my);
         render_frame(&w, &s, t, heading, trail, tlen, buf, sizeof buf);
         printf("\033[H%s", buf);

@@ -57,7 +57,7 @@ void flight_tick(int frames, int turn, int burn)
                 }
                 heading = atan2(ship.vy, ship.vx);
             }
-            orbit_step(&world, &ship, time_now, heading, demo ? 0.0 : burn, 0.004);
+            orbit_step(&world, &ship, time_now, (Burn){heading, demo ? 0.0 : burn}, 0.004);
             time_now += 0.004;
             if (!demo && burn) {
                 delta_v += world.thrust * 0.004;
@@ -79,7 +79,11 @@ void flight_tick(int frames, int turn, int burn)
 double flight_value(int field)
 {
     double mx, my;
-    moon_position(&world, time_now, &mx, &my);
+    {
+        const Vec2 moon = moon_position(&world, time_now);
+        mx = moon.x;
+        my = moon.y;
+    }
     switch (field) {
     case FLIGHT_X:
         return ship.x;

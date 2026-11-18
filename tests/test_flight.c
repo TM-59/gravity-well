@@ -19,7 +19,7 @@ static void manual_matches_existing_integrator(void)
         int burn = frame >= 40 && frame < 70;
         heading = remainder(heading + turn * 0.08, 2.0 * 3.14159265358979);
         for (int k = 0; k < 10; k++) {
-            orbit_step(&w, &s, t, heading, burn, 0.004);
+            orbit_step(&w, &s, t, (Burn){heading, burn}, 0.004);
             t += 0.004;
         }
         flight_tick(1, turn, burn);

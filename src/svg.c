@@ -22,9 +22,10 @@ static void range(const float *a, int n, float *lo, float *hi)
     }
 }
 
-int svg_plot(const char *path, const char *title, const char *xlabel, const char *ylabel,
-             const float *x, int count, const Series *series, int nseries)
+int svg_plot(const char *path, const Chart *chart, const float *x, int count, const Series *series,
+             int nseries)
 {
+    const char *title = chart->title, *xlabel = chart->xlabel, *ylabel = chart->ylabel;
     if (count < 2 || nseries < 1) {
         return -1;
     }

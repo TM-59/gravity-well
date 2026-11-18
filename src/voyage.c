@@ -270,7 +270,7 @@ void voyage_tick(Voyage *v, int frames, int command)
                 }
                 burn = fmin(burn, v->fuel / (v->world.thrust * V_DT));
             }
-            orbit_step(&v->world, &v->ship, v->time, heading, burn, V_DT);
+            orbit_step(&v->world, &v->ship, v->time, (Burn){heading, burn}, V_DT);
             v->fuel = fmax(0.0, v->fuel - burn * v->world.thrust * V_DT - voyage_boil(v) * V_DT);
             v->time += V_DT;
             v->leg_time += V_DT;
@@ -382,7 +382,11 @@ double voyage_value(const Voyage *v, int field)
 {
     double a, e, apo, peri, mx, my;
     elements(v, &a, &e, &apo, &peri);
-    moon_position(&v->world, v->time, &mx, &my);
+    {
+        const Vec2 moon = moon_position(&v->world, v->time);
+        mx = moon.x;
+        my = moon.y;
+    }
     const Ship *s = &v->ship;
     double r = hypot(s->x, s->y), w = voyage_wobble(v);
     switch (field) {

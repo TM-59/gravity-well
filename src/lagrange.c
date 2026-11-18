@@ -285,8 +285,10 @@ static int stability_output(const char *dir)
                        {"long-period omega", b, "#b77d17"},
                        {"growth rate Re(lambda)", c, "#b03a48"}};
     (void)snprintf(path, sizeof path, "%s/l4-modes.svg", dir);
-    if (svg_plot(path, "L4/L5 linear modes: frequencies merge at Routh's mu = 0.03852",
-                 "mass fraction mu", "rate [1/T]", xs, M, modes, 3)) {
+    if (svg_plot(path,
+                 &(Chart){"L4/L5 linear modes: frequencies merge at Routh's mu = 0.03852",
+                          "mass fraction mu", "rate [1/T]"},
+                 xs, M, modes, 3)) {
         return 1;
     }
 
@@ -307,7 +309,7 @@ static int stability_output(const char *dir)
                    period[0], period[1], 2 * PI / w[0], 2 * PI / w[1]);
     Series lib[2] = {{"short-period mode", a, "#136d88"}, {"long-period mode", b, "#b77d17"}};
     (void)snprintf(path, sizeof path, "%s/l4-libration.svg", dir);
-    if (svg_plot(path, title, "t [T]", "eta = y - y(L4) [1e-6 L]", xs, N, lib, 2)) {
+    if (svg_plot(path, &(Chart){title, "t [T]", "eta = y - y(L4) [1e-6 L]"}, xs, N, lib, 2)) {
         return 1;
     }
 
@@ -332,7 +334,7 @@ static int stability_output(const char *dir)
                       {"mu = 0.05 (unstable)", b, "#b03a48"},
                       {"theory slope, mu = 0.05", c, "#8a99a8"}};
     (void)snprintf(path, sizeof path, "%s/l4-routh.svg", dir);
-    if (svg_plot(path, title, "t [T]", "log10 distance from L4 [L]", xs, N, crit, 3)) {
+    if (svg_plot(path, &(Chart){title, "t [T]", "log10 distance from L4 [L]"}, xs, N, crit, 3)) {
         return 1;
     }
 
@@ -351,8 +353,10 @@ static int stability_output(const char *dir)
     }
     Series saddle[3] = {{"L1", l[0], "#136d88"}, {"L2", l[1], "#b77d17"}, {"L3", l[2], "#594790"}};
     (void)snprintf(path, sizeof path, "%s/collinear-growth.svg", dir);
-    if (svg_plot(path, "L1-L3 are saddles: growing mode, mu = 1/101", "t [T]",
-                 "log10 distance from the point [L]", xs, K, saddle, 3)) {
+    if (svg_plot(path,
+                 &(Chart){"L1-L3 are saddles: growing mode, mu = 1/101", "t [T]",
+                          "log10 distance from the point [L]"},
+                 xs, K, saddle, 3)) {
         return 1;
     }
 
@@ -368,8 +372,10 @@ static int stability_output(const char *dir)
                        {"secondary to L1", b, "#136d88"},
                        {"secondary to L2", c, "#b77d17"}};
     (void)snprintf(path, sizeof path, "%s/hill.svg", dir);
-    if (svg_plot(path, "L1 and L2 straddle the Hill radius (mu/3)^(1/3)", "mass fraction mu",
-                 "distance from the secondary [L]", xs, M, hills, 3)) {
+    if (svg_plot(path,
+                 &(Chart){"L1 and L2 straddle the Hill radius (mu/3)^(1/3)", "mass fraction mu",
+                          "distance from the secondary [L]"},
+                 xs, M, hills, 3)) {
         return 1;
     }
 
@@ -491,8 +497,10 @@ int lagrange_output(const char *dir)
     }
     (void)snprintf(path, sizeof path, "%s/jacobi.svg", dir);
     Series series = {"C - C0", drift, "#136d88"};
-    if (svg_plot(path, "Jacobi conservation: displaced L4, RK4 dt=0.0025", "t [T]",
-                 "C - C0 [L^2/T^2]", tt, N, &series, 1)) {
+    if (svg_plot(path,
+                 &(Chart){"Jacobi conservation: displaced L4, RK4 dt=0.0025", "t [T]",
+                          "C - C0 [L^2/T^2]"},
+                 tt, N, &series, 1)) {
         return 1;
     }
     printf("CR3BP mu %.12g: L4 60 T, max |C-C0| %.6g\n", cr3bp_mu(), worst);

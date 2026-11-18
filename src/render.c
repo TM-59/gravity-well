@@ -31,7 +31,11 @@ size_t render_frame(const World *w, const Ship *s, double t, double heading, con
     }
     put(grid, 0.0, 0.0, '*');
     double mx, my;
-    moon_position(w, t, &mx, &my);
+    {
+        const Vec2 moon = moon_position(w, t);
+        mx = moon.x;
+        my = moon.y;
+    }
     put(grid, mx, my, 'o');
     double c = cos(heading), sn = sin(heading);
     put(grid, s->x, s->y, fabs(c) > fabs(sn) ? (c > 0 ? '>' : '<') : (sn > 0 ? '^' : 'v'));
