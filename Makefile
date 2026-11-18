@@ -1,6 +1,9 @@
 CC      ?= cc
 CFLAGS  ?= -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror
 LDLIBS  += -lm
+# The terminal mode (termios, STDIN_FILENO) of src/main.c is POSIX; the feature macro is set here
+# because a name starting with an underscore and a capital letter is reserved inside the program.
+POSIX   := -D_POSIX_C_SOURCE=200809L
 SRC     := src/orbit.c src/svg.c src/render.c src/gif.c
 CR3BP   := src/cr3bp.c src/lagrange.c src/svg.c
 EMCC    ?= emcc
@@ -11,7 +14,7 @@ NODE    ?= node
 all: gravity-well
 
 gravity-well: $(SRC) src/cr3bp.c src/lagrange.c src/main.c
-	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+	$(CC) $(CFLAGS) $(POSIX) -o $@ $^ $(LDLIBS)
 
 test_orbit: $(SRC) tests/test_orbit.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
@@ -165,12 +168,12 @@ fmt:
 	npm run fmt
 lint:
 	$(RUN) clang-format --dry-run --Werror $(STYLE_C)
-	$(RUN) clang-tidy $(STYLE_TU) -- -std=c11 -Isrc -Itests $(TIDY_EXTRA)
+	$(RUN) clang-tidy $(STYLE_TU) -- -std=c11 -Isrc -Itests $(POSIX) $(TIDY_EXTRA)
 	$(RUN) ruff format --check scripts
 	$(RUN) ruff check scripts
 	npm run lint
 typecheck:
-	for f in $(STYLE_TU); do $(CC) $(CFLAGS) -Isrc -Itests -fsyntax-only $$f || exit 1; done
+	for f in $(STYLE_TU); do $(CC) $(CFLAGS) $(POSIX) -Isrc -Itests -fsyntax-only $$f || exit 1; done
 	$(RUN) mypy
 	npm run typecheck
 check-style: lint typecheck

@@ -11,16 +11,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-    uint64_t key;
-    unsigned effects;
-    int route, turned;
-} Job;
+typedef RunPlan Job;
 
 static RunResult run_job(Job j)
 {
     RunResult r;
-    run_voyage(j.key, j.effects, j.route, j.turned, &r);
+    run_voyage(&j, &r);
     return r;
 }
 
@@ -29,8 +25,8 @@ static const char *ending_id(int e) { return e == 0 ? "end-turned" : e == 1 ? "e
 
 static void play_row(char *buf, size_t cap, int i, const RunResult *r)
 {
-    int route, turned;
-    play_choices(i, &route, &turned);
+    const Choices ch = play_choices(i);
+    int route = ch.route, turned = ch.turned;
     size_t n = (size_t)snprintf(
         buf, cap, "{\"seed\": \"%d\", \"choices\": {\"route\": %d, \"ilse\": %d}, \"order\": [", i,
         route, turned);
@@ -58,8 +54,8 @@ static void ablation_row(char *buf, size_t cap, int i, const RunResult *r)
 
 static void tension_row(char *buf, size_t cap, int i, int run, const RunResult *r)
 {
-    int route, turned;
-    tension_choices(run, &route, &turned);
+    const Choices ch = tension_choices(run);
+    int route = ch.route, turned = ch.turned;
     size_t n = (size_t)snprintf(buf, cap,
                                 "{\"seed\": \"%d\", \"run\": %d, \"path\": {\"route\": \"%d\", "
                                 "\"ilse\": \"%d\"}, \"completed\": %s, \"crisis\": [",
@@ -88,19 +84,12 @@ static const int ARM_TURNED[ARMS] = {DEFAULT_TURNED, DEFAULT_TURNED, DEFAULT_TUR
 
 static Job ablation_job(int arm, int i)
 {
-    return (Job){ablation_key(i), ARM_EFFECTS[arm], ARM_ROUTE[arm], ARM_TURNED[arm]};
+    return (Job){ablation_key(i), ARM_EFFECTS[arm], {ARM_ROUTE[arm], ARM_TURNED[arm]}};
 }
-static Job play_job(int i)
-{
-    int r, t;
-    play_choices(i, &r, &t);
-    return (Job){play_key(i), VE_ALL, r, t};
-}
+static Job play_job(int i) { return (Job){play_key(i), VE_ALL, play_choices(i)}; }
 static Job tension_job(int i, int run)
 {
-    int r, t;
-    tension_choices(run, &r, &t);
-    return (Job){tension_key(i, run), VE_ALL, r, t};
+    return (Job){tension_key(i, run), VE_ALL, tension_choices(run)};
 }
 
 /* ------------------------------------------------------------------ full output */
@@ -159,7 +148,7 @@ static const char *POLICY = "A pilot who reads the gauges, not the code: holds R
 static int write_all(const char *dir)
 {
     int np = PLAY_SEEDS, na = ARMS * ABLATION_SEEDS, nt = TENSION_SEEDS * TENSION_RUNS;
-    RunResult *res = calloc((size_t)(np + na + nt), sizeof *res);
+    RunResult *res = calloc((size_t)np + (size_t)na + (size_t)nt, sizeof *res);
     if (!res) {
         return 1;
     }
@@ -280,26 +269,30 @@ static char *slurp(const char *dir, const char *name)
         (void)fprintf(stderr, "missing %s\n", path);
         exit(1);
     }
-    if (fseek(f, 0, SEEK_END) != 0) {
+    /* Read in growing chunks; the bench files are tens of kB. */
+    size_t cap = 65536, len = 0;
+    char *buf = malloc(cap);
+    if (!buf) {
         exit(1);
     }
-    long size = ftell(f);
-    if (size < 0 || fseek(f, 0, SEEK_SET) != 0) {
+    for (;;) {
+        len += fread(buf + len, 1, cap - 1 - len, f);
+        if (len < cap - 1) {
+            break;
+        }
+        char *bigger = realloc(buf, cap * 2);
+        if (!bigger) {
+            exit(1);
+        }
+        buf = bigger;
+        cap *= 2;
+    }
+    if (ferror(f)) {
         exit(1);
     }
-    char *buf = malloc((size_t)size + 1);
-    if (!buf || fread(buf, 1, (size_t)size, f) != (size_t)size) {
-        exit(1);
-    }
-    buf[size] = 0;
+    buf[len] = 0;
     (void)fclose(f); /* read only: nothing is lost if closing fails */
     return buf;
-}
-
-static int cmp_key(const void *a, const void *b)
-{
-    uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
-    return x < y ? -1 : x > y;
 }
 
 static int check(const char *dir)
@@ -308,6 +301,9 @@ static int check(const char *dir)
     /* [seed] every pilot key in the bench is distinct (paired arms share a seed by design). */
     int nk = PLAY_SEEDS + ABLATION_SEEDS + TENSION_SEEDS * TENSION_RUNS, k = 0;
     uint64_t *keys = malloc(sizeof *keys * (size_t)nk);
+    if (!keys) {
+        return 1;
+    }
     for (int i = 0; i < PLAY_SEEDS; i++) {
         keys[k++] = play_key(i);
     }
@@ -319,11 +315,12 @@ static int check(const char *dir)
             keys[k++] = tension_key(i, r);
         }
     }
-    qsort(keys, (size_t)nk, sizeof *keys, cmp_key);
     for (int i = 1; i < nk; i++) {
-        if (keys[i] == keys[i - 1]) {
-            (void)fputs("[seed] duplicate run key\n", stderr);
-            failures++;
+        for (int j = 0; j < i; j++) {
+            if (keys[i] == keys[j]) {
+                (void)fputs("[seed] duplicate run key\n", stderr);
+                failures++;
+            }
         }
     }
     free(keys);

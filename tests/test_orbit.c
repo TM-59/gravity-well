@@ -80,7 +80,7 @@ static void test_hohmann_transfer_reaches_the_target_radius(void)
     double v1 = circular_speed(&w, r1), vt = sqrt(w.star_gm * (2.0 / r1 - 1.0 / a));
     Ship s = {r1, 0.0, 0.0, vt};
     double t = 0.0, dt = 0.0005, half = 0.5 * circular_period(&w, a);
-    for (double u = 0.0; u < half; u += dt) {
+    while (t < half) {
         orbit_step(&w, &s, t, (Burn){0.0, 0.0}, dt);
         t += dt;
     }

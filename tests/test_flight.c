@@ -78,7 +78,7 @@ static void transfer_bench(void)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2 || strcmp(argv[1], "--bench")) {
+    if (argc < 2 || strcmp(argv[1], "--bench") != 0) {
         manual_matches_existing_integrator();
     }
     transfer_bench();

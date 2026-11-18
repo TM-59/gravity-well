@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const int DESIGN[VS_COUNT] = {VS_DOCK, VS_ROUTE,   VS_BEACON, VS_FLARE,
@@ -17,8 +18,9 @@ static int close_to(double a, double b) { return fabs(a - b) <= 1e-9 * fmax(1.0,
 
 /* Fly with the pilot, answering scenes with the given choices, until `target` opens. Returns frames
  * flown. */
-static int drive(Voyage *v, Pilot *p, int target, int route, int turned)
+static int drive(Voyage *v, Pilot *p, int target, Choices choices)
 {
+    int route = choices.route, turned = choices.turned;
     int frames = 0;
     while (v->scene != target) {
         assert(v->leg < V_LEGS && frames < RUN_GUARD_FRAMES);
@@ -57,9 +59,10 @@ static char *slurp(const char *path)
     return buf;
 }
 
-/* Two-sided sign test over the seeds: p for the larger of the two one-way counts. */
-static double sign_p(int k, int n)
+/* Two-sided sign test over the ablation seeds: p for the larger of the two one-way counts. */
+static double sign_p(int k)
 {
+    const int n = ABLATION_SEEDS;
     double tail = 0.0;
     for (int x = k; x <= n; x++) {
         double comb = 1.0;
@@ -71,10 +74,28 @@ static double sign_p(int k, int n)
     return fmin(1.0, 2.0 * tail / pow(2.0, n));
 }
 
-/* Reads one beat's on/off rows from ablation.json (seconds, red, tows per seed) into
- * v[arm][seed][metric]. */
-static void read_beat(const char *text, const char *beat, double v[2][ABLATION_SEEDS][3])
+/* The three numbers of an ablation row, in the order they are written. */
+enum RowField { ROW_SECONDS, ROW_RED, ROW_TOWS };
+
+/* The number after `"<field>": ` at or after `at`; asserts that the name and a number are there. */
+static double number_after(const char *at, enum RowField field)
 {
+    static const char *const NAME[] = {"seconds", "red", "tows"};
+    char head[32];
+    (void)snprintf(head, sizeof head, "\"%s\": ", NAME[field]);
+    const char *start = strstr(at, head);
+    assert(start);
+    char *end = NULL;
+    double value = strtod(start + strlen(head), &end);
+    assert(end != start + strlen(head));
+    return value;
+}
+
+/* Reads one beat's on/off rows from docs/narrative/ablation.json (seconds, red, tows per seed) into
+ * v[arm][seed][metric]. */
+static void read_beat(const char *beat, double v[2][ABLATION_SEEDS][3])
+{
+    const char *text = slurp("docs/narrative/ablation.json");
     char head[64];
     (void)snprintf(head, sizeof head, "\"%s\": {", beat);
     const char *at = strstr(strstr(text, "\"beats\": {"), head);
@@ -84,8 +105,10 @@ static void read_beat(const char *text, const char *beat, double v[2][ABLATION_S
         assert(at);
         for (int i = 0; i < ABLATION_SEEDS; i++) {
             at = strstr(at, "\"seconds\": ");
-            assert(at && sscanf(at, "\"seconds\": %lf, \"red\": %lf, \"tows\": %lf", &v[arm][i][0],
-                                &v[arm][i][1], &v[arm][i][2]) == 3);
+            assert(at);
+            v[arm][i][0] = number_after(at, ROW_SECONDS);
+            v[arm][i][1] = number_after(at, ROW_RED);
+            v[arm][i][2] = number_after(at, ROW_TOWS);
             at++;
         }
     }
@@ -105,8 +128,9 @@ static void check_choice(const char *text, const char *head)
         assert(at);
         for (int i = 0; i < ABLATION_SEEDS; i++) {
             at = strstr(at, "\"seconds\": ");
-            assert(at && sscanf(at, "\"seconds\": %lf, \"red\": %lf", &v[path][i][0],
-                                &v[path][i][1]) == 2);
+            assert(at);
+            v[path][i][0] = number_after(at, ROW_SECONDS);
+            v[path][i][1] = number_after(at, ROW_RED);
             at++;
         }
     }
@@ -156,13 +180,13 @@ int main(void)
      * the end) and both endings are reached. */
     {
         const char *text = slurp("docs/narrative/play-order.json");
-        char want[256] = "\"order\": [";
+        char want[256];
+        size_t used = (size_t)snprintf(want, sizeof want, "\"order\": [");
         for (int k = 0; k < VS_COUNT; k++) {
-            strcat(want, k ? ", \"" : "\"");
-            strcat(want, SCENE_ID[DESIGN[k]]);
-            strcat(want, "\"");
+            used += (size_t)snprintf(want + used, sizeof want - used, "%s\"%s\"", k ? ", " : "",
+                                     SCENE_ID[DESIGN[k]]);
         }
-        strcat(want, "], \"won\": true");
+        (void)snprintf(want + used, sizeof want - used, "], \"won\": true");
         int seeds = 0, orders = 0;
         for (const char *c = text; (c = strstr(c, "\"seed\": ")); c++) {
             seeds++;
@@ -183,7 +207,7 @@ int main(void)
         printf("[order] %d seeds: dock .. quay in the designed order; both endings reached\n",
                seeds);
         RunResult r;
-        run_voyage(play_key(3), VE_ALL, 1, 0, &r);
+        run_voyage(&(RunPlan){play_key(3), VE_ALL, {1, 0}}, &r);
         assert(r.completed && r.order_len == VS_COUNT && r.ending == 0 && r.quiet[VS_FLARE] &&
                r.quiet[VS_ILSE] && r.quiet[VS_SILENCE]);
         for (int k = 0; k < VS_COUNT; k++) {
@@ -218,9 +242,9 @@ int main(void)
         start(&a, &p, VE_ALL);
         start(&b, &q, VE_ALL);
         start(&c, &s, VE_ALL & ~VE_ROUTE);
-        drive(&a, &p, VS_ROUTE, 0, 1);
-        drive(&b, &q, VS_ROUTE, 1, 1);
-        drive(&c, &s, VS_ROUTE, 1, 1);
+        drive(&a, &p, VS_ROUTE, (Choices){0, 1});
+        drive(&b, &q, VS_ROUTE, (Choices){1, 1});
+        drive(&c, &s, VS_ROUTE, (Choices){1, 1});
         assert(voyage_options(VS_ROUTE) == 2 && !voyage_heavy(VS_ROUTE));
         double fa = a.fuel, fb = b.fuel, fc = c.fuel;
         assert(voyage_answer(&a, 0) == 0 && voyage_answer(&b, 1) == 0 && voyage_answer(&c, 1) == 0);
@@ -239,8 +263,8 @@ int main(void)
         Pilot p, q;
         start(&a, &p, VE_ALL);
         start(&b, &q, VE_ALL & ~VE_CACHE);
-        drive(&a, &p, VS_BEACON, 1, 1);
-        drive(&b, &q, VS_BEACON, 1, 1);
+        drive(&a, &p, VS_BEACON, (Choices){1, 1});
+        drive(&b, &q, VS_BEACON, (Choices){1, 1});
         assert(a.banner == VB_CLEAR && a.banner_left > 0.0 && !voyage_heavy(VS_BEACON));
         double fa = a.fuel, fb = b.fuel;
         int loud = a.loud;
@@ -261,7 +285,7 @@ int main(void)
      * relative difference >= 5 %). The mission clock is reported, not required. */
     {
         static double v[2][ABLATION_SEEDS][3];
-        read_beat(slurp("docs/narrative/ablation.json"), "beacon", v);
+        read_beat("beacon", v);
         static const char *const name[3] = {"seconds", "red", "tows"};
         int hits = 0;
         for (int m = 0; m < 3; m++) {
@@ -273,7 +297,7 @@ int main(void)
                 on += v[0][i][m];
                 off += v[1][i][m];
             }
-            double p = sign_p(worse > better ? worse : better, ABLATION_SEEDS);
+            double p = sign_p(worse > better ? worse : better);
             double rel = fabs(off - on) / fmax(fabs(on), ABLATION_SEEDS);
             int ok = worse > better && p <= 0.05 && rel >= 0.05;
             if (m > 0) {
@@ -295,12 +319,12 @@ int main(void)
         Pilot p, q;
         start(&a, &p, VE_ALL);
         start(&b, &q, VE_ALL & ~VE_FLARE);
-        drive(&a, &p, VS_FLARE, 1, 1);
-        drive(&b, &q, VS_FLARE, 1, 1);
+        drive(&a, &p, VS_FLARE, (Choices){1, 1});
+        drive(&b, &q, VS_FLARE, (Choices){1, 1});
         assert(voyage_answer(&a, 0) == 0 && voyage_answer(&b, 0) == 0);
         assert(a.leg == 2 && voyage_boil(&a) == 0.0); /* leg 3, below the front, is calm */
-        drive(&a, &p, VS_ILSE, 1, 1);
-        drive(&b, &q, VS_ILSE, 1, 1);
+        drive(&a, &p, VS_ILSE, (Choices){1, 1});
+        drive(&b, &q, VS_ILSE, (Choices){1, 1});
         assert(voyage_answer(&a, 1) == 0 && voyage_answer(&b, 1) == 0);
         assert(a.leg == 3 && b.leg == 3);
         double r2 = a.ship.x * a.ship.x + a.ship.y * a.ship.y, f = a.fuel, t = a.time;
@@ -322,7 +346,7 @@ int main(void)
         Voyage a;
         Pilot p;
         start(&a, &p, VE_ALL);
-        drive(&a, &p, VS_ILSE, 1, turned);
+        drive(&a, &p, VS_ILSE, (Choices){1, turned});
         assert(voyage_options(VS_ILSE) == 2 && voyage_heavy(VS_ILSE) && a.banner == VB_NONE);
         int loud = a.loud;
         assert(voyage_answer(&a, turned) == 0);
@@ -379,8 +403,8 @@ int main(void)
         Pilot p, q;
         start(&a, &p, VE_ALL);
         start(&b, &q, VE_ALL & ~VE_SILENCE);
-        drive(&a, &p, VS_SILENCE, 1, 1);
-        drive(&b, &q, VS_SILENCE, 1, 1);
+        drive(&a, &p, VS_SILENCE, (Choices){1, 1});
+        drive(&b, &q, VS_SILENCE, (Choices){1, 1});
         assert(voyage_heavy(VS_SILENCE) && a.banner == VB_NONE && b.banner == VB_NONE);
         int loud = a.loud;
         assert(voyage_answer(&a, 0) == 0 && voyage_answer(&b, 0) == 0);
@@ -417,7 +441,7 @@ int main(void)
         Voyage a;
         Pilot p;
         start(&a, &p, VE_ALL);
-        drive(&a, &p, VS_ROUTE, 0, 0);
+        drive(&a, &p, VS_ROUTE, (Choices){0, 0});
         assert(a.banner == VB_CLEAR && a.loud == 1);
         assert(voyage_answer(&a, 2) == 1 && voyage_answer(&a, -1) == 1);
         voyage_tick(&a, (VoyageInput){-1, VC_RAISE});

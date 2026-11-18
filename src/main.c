@@ -1,4 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,15 +28,19 @@ static int headless(const char *dir)
     double dt = 0.002, t = 0.0, e0 = ship_energy(&w, &s);
     enum { STRIDE = 25 };
     int n = (int)(total / dt) / STRIDE + 2, i = 0, burned = 0;
-    float *tt = malloc(n * sizeof *tt), *xs = malloc(n * sizeof *xs), *ys = malloc(n * sizeof *ys);
-    float *rr = malloc(n * sizeof *rr), *er = malloc(n * sizeof *er);
-    if (!tt || !xs || !ys || !rr || !er) {
+    /* One block for the five logged series: t, x, y, r and the energy error. */
+    float *store = malloc((size_t)n * 5 * sizeof *store);
+    if (!store) {
         return 1;
     }
+    size_t len = (size_t)n;
+    float *tt = store, *xs = store + len, *ys = store + 2 * len, *rr = store + 3 * len,
+          *er = store + 4 * len;
     char path[512];
     (void)snprintf(path, sizeof path, "%s/run.csv", dir);
     FILE *csv = fopen(path, "w");
     if (!csv) {
+        free(store);
         return 1;
     }
     (void)fprintf(csv, "t,x,y,r,energy\n");
@@ -63,29 +66,29 @@ static int headless(const char *dir)
         t += dt;
     }
     if (fclose(csv) != 0) {
+        free(store);
         return 1;
     }
     (void)snprintf(path, sizeof path, "%s/track.svg", dir);
     Series tr[] = {{"y", ys, "#1f77b4"}};
     if (svg_plot(path, &(Chart){"Hohmann transfer path (y vs x)", "x", "y"}, xs, i, tr, 1)) {
+        free(store);
         return 1;
     }
     (void)snprintf(path, sizeof path, "%s/radius.svg", dir);
     Series ra[] = {{"r", rr, "#2ca02c"}};
     if (svg_plot(path, &(Chart){"Orbital radius during the transfer", "t", "r"}, tt, i, ra, 1)) {
+        free(store);
         return 1;
     }
     (void)snprintf(path, sizeof path, "%s/energy.svg", dir);
     Series en[] = {{"E - E0 (after 2nd burn)", er, "#d62728"}};
     if (svg_plot(path, &(Chart){"Energy error of velocity Verlet", "t", "dE"}, tt, i, en, 1)) {
+        free(store);
         return 1;
     }
     printf("dv1 %.4f, final r %.4f\n", dv1, hypot(s.x, s.y));
-    free(tt);
-    free(xs);
-    free(ys);
-    free(rr);
-    free(er);
+    free(store);
     return 0;
 }
 

@@ -45,10 +45,10 @@ static void value(const char *id, const char *what, double measured, double theo
 
 static uint64_t play_key_like(void) { return sub_seed(20261111ULL, 0, 9); }
 
-static double largest(const float *a, int from, int n)
+static double largest(const float *a, int n)
 {
     double m = 0.0;
-    for (int i = from; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         m = fmax(m, a[i]);
     }
     return m;
@@ -104,9 +104,10 @@ static void fig_gravity(void)
          2);
 }
 
-/* Time for one full turn of a circular orbit at radius r, measured by integration. */
-static double measured_period(const World *w, double r, double dt)
+/* Time for one full turn of a circular orbit at radius r, measured by integration (dt 0.004). */
+static double measured_period(const World *w, double r)
 {
+    const double dt = 0.004;
     Ship s = tangential(r, circular_speed(w, r));
     double t = 0.0, prev_y = s.y;
     for (int k = 0; k < 4000000; k++) {
@@ -127,7 +128,7 @@ static void fig_period(void)
     int n = 25;
     double sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0;
     for (int i = 0; i < n; i++) {
-        double r = 0.6 + 0.1 * i, T = measured_period(&w, r, 0.004);
+        double r = 0.6 + 0.1 * i, T = measured_period(&w, r);
         xs[i] = (float)r;
         ya[i] = (float)T;
         yb[i] = (float)circular_period(&w, r);
@@ -137,9 +138,9 @@ static void fig_period(void)
         sxy += log(r) * log(T);
     }
     value("period-r1", "time of one turn at r = 1, integrated with dt = 0.004 (theory 2 pi)",
-          measured_period(&w, 1.0, 0.004), 2.0 * PI);
+          measured_period(&w, 1.0), 2.0 * PI);
     value("period-r3", "time of one turn at r = 3, the moon's ring (theory 2 pi 3^1.5)",
-          measured_period(&w, 3.0, 0.004), 2.0 * PI * pow(3.0, 1.5));
+          measured_period(&w, 3.0), 2.0 * PI * pow(3.0, 1.5));
     value("kepler3-exponent", "slope of log T against log r over 25 radii (theory 3/2)",
           (n * sxy - sx * sy) / (n * sxx - sx * sx), 1.5);
     value("circular-speed-r2", "circular_speed at r = 2 (theory sqrt(GM / r))",
@@ -285,7 +286,7 @@ static void fig_escape(void)
     value("bound-apoapsis",
           "largest radius reached at 0.9 of the escape speed (theory a (1 + e) = 1 / (2 - 1.62) x "
           "2 - 1)",
-          largest(ya, 0, n), 2.0 / (2.0 - 1.62) - 1.0);
+          largest(ya, n), 2.0 / (2.0 - 1.62) - 1.0);
     Series p[] = {{"0.9 v_esc (bound)", ya, "#1f77b4"},
                   {"v_esc", yb, "#2ca02c"},
                   {"1.1 v_esc", yc, "#d62728"}};
@@ -296,26 +297,18 @@ static void fig_escape(void)
 static void fig_moon(void)
 {
     World w = world_default(), off = star_only();
-    double lo = 1e9, hi = 0.0, mx, my, dt = 0.004;
+    double lo = 1e9, hi = 0.0, dt = 0.004;
     for (int i = 0; i <= 2000; i++) {
-        {
-            const Vec2 moon = moon_position(&w, 0.02 * i);
-            mx = moon.x;
-            my = moon.y;
-        }
-        lo = fmin(lo, hypot(mx, my));
-        hi = fmax(hi, hypot(mx, my));
+        const Vec2 moon = moon_position(&w, 0.02 * i);
+        lo = fmin(lo, hypot(moon.x, moon.y));
+        hi = fmax(hi, hypot(moon.x, moon.y));
     }
-    {
-        const Vec2 moon = moon_position(&w, circular_period(&w, 3.0));
-        mx = moon.x;
-        my = moon.y;
-    }
+    const Vec2 back = moon_position(&w, circular_period(&w, 3.0));
     value("moon-radius-span",
           "largest minus smallest distance of the moon from the star over 40 T (theory 0)", hi - lo,
           0.0);
     value("moon-return", "moon's y after one circular_period(3), back on the +x axis (theory 0)",
-          my, 0.0);
+          back.y, 0.0);
     value("moon-omega", "moon_omega (theory sqrt(GM / 27))", moon_omega(&w), sqrt(1.0 / 27.0));
     Ship a = tangential(2.6, circular_speed(&w, 2.6)), b = a;
     double e0 = ship_energy(&w, &a), worst = 0.0, worst_off = 0.0;
@@ -395,8 +388,9 @@ static void fig_hohmann(void)
          n, s, 2);
 
     /* The cost of a two-impulse transfer from ring 1 to ring R, from the same formulas. */
-    n = 0;
-    for (double R = 1.0; R <= 4.0001; R += 0.02, n++) {
+    /* R runs from 1 to 4 in steps of 0.02 (151 values), summed as before. */
+    double R = 1.0;
+    for (n = 0; n < 151; n++) {
         double at = 0.5 * (1.0 + R);
         double d1 = fabs(sqrt(2.0 - 1.0 / at) - 1.0),
                d2 = fabs(sqrt(1.0 / R) - sqrt(2.0 / R - 1.0 / at));
@@ -404,6 +398,7 @@ static void fig_hohmann(void)
         ya[n] = (float)d1;
         yb[n] = (float)d2;
         yc[n] = (float)(d1 + d2);
+        R += 0.02;
     }
     Series c[] = {{"first impulse", ya, "#1f77b4"},
                   {"second impulse", yb, "#2ca02c"},
@@ -741,8 +736,18 @@ typedef struct {
     double pod_gain, pod_wait, total;
 } Flown;
 
-static void fly(uint64_t key, unsigned effects, int route, int turned, Flown *out, int record)
+/* The pilot's key, the story effects and the two answers of one flight. */
+typedef struct {
+    uint64_t key;
+    unsigned effects;
+    int route, turned;
+} Flight;
+
+static void fly(const Flight *plan, Flown *out, int record)
 {
+    uint64_t key = plan->key;
+    unsigned effects = plan->effects;
+    int route = plan->route, turned = plan->turned;
     Voyage v;
     Pilot p;
     voyage_init(&v, effects);
@@ -779,7 +784,7 @@ static void fly(uint64_t key, unsigned effects, int route, int turned, Flown *ou
             held_since = v.time;
             out->pod_gain = v.fuel - fuel_before;
         }
-        if (v.leg != leg) {
+        if (v.leg != leg && leg >= 0 && leg < V_LEGS) {
             out->t_clear[leg] = v.time;
             out->fuel_end[leg] = v.fuel;
             if (held_since >= 0.0 && out->pod_wait == 0.0) {
@@ -861,7 +866,7 @@ static void fig_fuel(void)
     voyage_start(&v, VE_ALL);
     value("tank-dock", "tank after the dock scene with every effect on (DOCK_TANK)", v.fuel, 0.40);
     Flown f;
-    fly(play_key_like(), VE_ALL, 1, 1, &f, 1);
+    fly(&(Flight){play_key_like(), VE_ALL, 1, 1}, &f, 1);
 }
 
 /* S18: the wobble of the apsis readout. */
@@ -881,9 +886,9 @@ static void fig_wobble(void)
         ya[n] = (float)voyage_wobble(&a);
         yb[n] = (float)voyage_wobble(&b);
         yc[n] = (float)voyage_wobble(&c);
-        ma = fmax(ma, fabs(ya[n]));
-        mb = fmax(mb, fabs(yb[n]));
-        mc = fmax(mc, fabs(yc[n]));
+        ma = fmax(ma, fabsf(ya[n]));
+        mb = fmax(mb, fabsf(yb[n]));
+        mc = fmax(mc, fabsf(yc[n]));
         n++;
     }
     value("wobble-alone",
@@ -913,12 +918,15 @@ static void fig_boil(void)
     Voyage v;
     voyage_start(&v, VE_ALL);
     v.leg = 3;
+    /* r runs from 1 to 3 in steps of 0.02 (101 values), summed as before. */
     int n = 0;
-    for (double r = 1.0; r <= 3.0001; r += 0.02, n++) {
+    double r = 1.0;
+    for (n = 0; n < 101; n++) {
         v.ship = tangential(r, 0.5);
         xs[n] = (float)r;
         ya[n] = (float)voyage_boil(&v);
         yb[n] = (float)(0.016 * 4.0 / (r * r));
+        r += 0.02;
     }
     v.ship = tangential(2.0, 0.5);
     value("boil-r2", "voyage_boil at r = 2 in leg 4 (theory FLARE_BOIL)", voyage_boil(&v), 0.016);
@@ -1022,8 +1030,8 @@ static void fig_tow(void)
 static void val_runs(void)
 {
     Flown back, hold;
-    fly(play_key_like(), VE_ALL, 1, 0, &back, 0);
-    fly(play_key_like(), VE_ALL, 1, 1, &hold, 0);
+    fly(&(Flight){play_key_like(), VE_ALL, 1, 0}, &back, 0);
+    fly(&(Flight){play_key_like(), VE_ALL, 1, 1}, &hold, 0);
     value("pod-fuel",
           "fuel that went in when the grapple held (theory POD_FUEL 0.32, less the flare's "
           "boil-off in that frame)",
