@@ -1,7 +1,22 @@
-'use strict';
 // Only drawing, controls and timing. All states, potentials, roots and contour
 // edge intersections come from the same C functions as the terminal output.
-const $ = (id) => document.getElementById(id);
+/** @param {string} id */
+const $ = (id) => {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`missing #${id}`);
+  return element;
+};
+/**
+ * @template {HTMLElement} T
+ * @param {string} id
+ * @param {{ new (): T, name: string }} type
+ * @returns {T}
+ */
+const $as = (id, type) => {
+  const element = $(id);
+  if (!(element instanceof type)) throw new Error(`#${id} is not a ${type.name}`);
+  return element;
+};
 const names = [
   'x',
   'y',
@@ -25,20 +40,33 @@ const names = [
   'routh',
   'hill',
 ];
-let engine,
-  state,
-  paused = true,
+/** @type {LagrangeModule | null} */
+let engine = null;
+/** @type {Record<string, number> | null} */
+let state = null;
+let paused = true,
   last = 0,
   elapsed = 0,
   preset = 0,
   level = 0,
   inertial = false,
+  /** @type {number[][]} */
   trail = [],
+  /** @type {number[][]} */
   history = [],
+  /** @type {number[][]} */
   segments = [],
+  /** @type {boolean[]} */
   mask = [];
-const fields = () => Object.fromEntries(names.map((name, i) => [name, engine._lab_value(i)]));
+/** The loaded C engine; the controls stay disabled until it is. */
+function core() {
+  if (!engine) throw new Error('the C engine is not loaded');
+  return engine;
+}
+/** The lab's values by name; `names` follows enum LabValue in src/lagrange.h. */
+const fields = () => Object.fromEntries(names.map((name, i) => [name, core()._lab_value(i)]));
 function reset(start = false) {
+  const engine = core();
   engine._lab_set_level(level);
   engine._lab_reset(preset);
   state = fields();
@@ -46,14 +74,12 @@ function reset(start = false) {
   elapsed = 0;
   trail = [[state.x, state.y, state.ix, state.iy]];
   history = [[0, 0]];
-  segments = Array.from({ length: state.segments }, (_, i) =>
-    [
-      engine._lab_segment_x1(i),
-      engine._lab_segment_y1(i),
-      engine._lab_segment_x2(i),
-      engine._lab_segment_y2(i),
-    ],
-  );
+  segments = Array.from({ length: state.segments }, (_, i) => [
+    engine._lab_segment_x1(i),
+    engine._lab_segment_y1(i),
+    engine._lab_segment_x2(i),
+    engine._lab_segment_y2(i),
+  ]);
   mask = Array.from(
     { length: 80 * 80 },
     (_, i) =>
@@ -65,7 +91,12 @@ function reset(start = false) {
   $('points').replaceChildren();
   for (let i = 1; i <= 5; i++) {
     const row = document.createElement('tr');
-    for (const text of [`L${i}`, ...[engine._lab_point_x(i), engine._lab_point_y(i), engine._lab_point_c(i)].map((v) => v.toFixed(6))]) {
+    for (const text of [
+      `L${i}`,
+      ...[engine._lab_point_x(i), engine._lab_point_y(i), engine._lab_point_c(i)].map((v) =>
+        v.toFixed(6),
+      ),
+    ]) {
       const cell = document.createElement('td');
       cell.textContent = text;
       row.append(cell);
@@ -76,6 +107,7 @@ function reset(start = false) {
   draw();
 }
 function update() {
+  if (!state) return;
   $('l4').setAttribute('aria-pressed', String(preset === 0));
   $('l1').setAttribute('aria-pressed', String(preset === 1));
   $('pause').textContent = state.status
@@ -85,7 +117,7 @@ function update() {
         ? 'Resume'
         : 'Start'
       : 'Pause';
-  $('pause').disabled = Boolean(state.status);
+  $as('pause', HTMLButtonElement).disabled = Boolean(state.status);
   $('experiment').textContent = preset ? 'Through the L1 gateway.' : 'A little nudge at L4.';
   $('guidance').textContent = preset
     ? 'The traveller starts to the left of L1, moving right. Watch it pass the gateway; the primaries stay fixed in this rotating view.'
@@ -124,25 +156,30 @@ function update() {
     ? 'Comparison only: grey regions use the selected boundary C. The amber traveller keeps its own C, shown in the data panel.'
     : 'The boundary uses the traveller’s initial C; it cannot enter the grey regions while C is conserved.';
 }
+/** @param {string} id */
 function context(id) {
-  const canvas = $(id),
+  const canvas = $as(id, HTMLCanvasElement),
     box = canvas.getBoundingClientRect(),
     dpr = Math.min(devicePixelRatio || 1, 2);
   canvas.width = Math.round(box.width * dpr);
   canvas.height = Math.round(box.height * dpr);
   const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error(`no 2D context for #${id}`);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.font = '14px ui-monospace,monospace';
   return { ctx, w: box.width, h: box.height };
 }
 function draw() {
   if (!state) return;
+  const engine = core();
   const { ctx, w, h } = context('map'),
     scale = Math.min(w - 48, h - 48) / 3.4;
+  /** @type {(x: number, y: number) => [number, number]} */
   const flat = (x, y) => [w / 2 + x * scale, h / 2 - y * scale];
   // View transform only: the rotating picture is turned by the elapsed angle n t.
   const cos = Math.cos(inertial ? state.time : 0),
     sin = Math.sin(inertial ? state.time : 0);
+  /** @type {(x: number, y: number) => [number, number]} */
   const point = (x, y) => flat(x * cos - y * sin, x * sin + y * cos);
   for (let i = 0; i < mask.length; i++)
     if (mask[i]) {
@@ -194,10 +231,12 @@ function draw() {
     ctx.fillStyle = '#eee9df';
     ctx.fillText(`L${i}`, x + 5, y - 8);
   }
-  for (const [x, r, color] of [
+  /** @type {[number, number, string][]} */
+  const bodies = [
     [-state.mu, 7, '#efbd84'],
     [1 - state.mu, 5, '#b5a2ee'],
-  ]) {
+  ];
+  for (const [x, r, color] of bodies) {
     const p = point(x, 0);
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -233,15 +272,17 @@ function draw() {
   });
   c.stroke();
 }
+/** @param {number} now */
 function frame(now) {
-  if (engine && !paused && !state.status) {
+  if (engine && state && !paused && !state.status) {
     elapsed += Math.min((now - last) / 1000, 0.1);
     while (elapsed >= 0.04 && !state.status) {
       engine._lab_tick(1);
-      state = fields();
+      const next = fields();
+      state = next;
       elapsed -= 0.04;
-      trail.push([state.x, state.y, state.ix, state.iy]);
-      history.push([state.time, state.c - state.c0]);
+      trail.push([next.x, next.y, next.ix, next.iy]);
+      history.push([next.time, next.c - next.c0]);
     }
     if (state.status) paused = true;
     update();
@@ -271,7 +312,7 @@ $('pause').onclick = () => {
 };
 $('reset').onclick = () => reset(false);
 $('mass').oninput = () => {
-  engine._lab_set_mu(Number($('mass').value));
+  core()._lab_set_mu(Number($as('mass', HTMLInputElement).value));
   reset(false);
 };
 $('view').onclick = () => {
@@ -280,7 +321,7 @@ $('view').onclick = () => {
   draw();
 };
 $('level').onchange = () => {
-  level = Number($('level').value);
+  level = Number($as('level', HTMLSelectElement).value);
   reset(false);
 };
 document.addEventListener('visibilitychange', () => {
@@ -298,8 +339,8 @@ Object.defineProperty(window, 'lagrangeView', {
             inertial,
             levelIndex: level,
             points: Array.from({ length: 5 }, (_, i) => [
-              engine._lab_point_x(i + 1),
-              engine._lab_point_y(i + 1),
+              core()._lab_point_x(i + 1),
+              core()._lab_point_y(i + 1),
             ]),
             trailLength: trail.length,
           }
@@ -312,8 +353,15 @@ Promise.resolve()
   .then((module) => {
     engine = module;
     reset();
-    for (const id of ['l4', 'l1', 'pause', 'reset', 'level', 'mass', 'view'])
-      $(id).disabled = false;
+    for (const id of ['l4', 'l1', 'pause', 'reset', 'level', 'mass', 'view']) {
+      const control = $(id);
+      if (
+        control instanceof HTMLButtonElement ||
+        control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement
+      )
+        control.disabled = false;
+    }
     requestAnimationFrame(frame);
   })
   .catch(() => {

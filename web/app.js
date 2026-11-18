@@ -1,6 +1,27 @@
-'use strict';
 /* Only presentation lives here. Every state value and integration step is C. */
-const $ = (id) => document.getElementById(id);
+/** @param {string} id */
+const $ = (id) => {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`missing #${id}`);
+  return element;
+};
+/**
+ * @template {HTMLElement} T
+ * @param {string} id
+ * @param {{ new (): T, name: string }} type
+ * @returns {T}
+ */
+const $as = (id, type) => {
+  const element = $(id);
+  if (!(element instanceof type)) throw new Error(`#${id} is not a ${type.name}`);
+  return element;
+};
+/** @param {HTMLCanvasElement} canvas */
+const context2d = (canvas) => {
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('no 2D canvas context');
+  return context;
+};
 const fieldNames = [
   'x',
   'y',
@@ -67,31 +88,63 @@ const voyageFields = [
   'drift',
   'cue',
 ];
-const canvas = $('map'),
-  ctx = canvas.getContext('2d');
+const canvas = $as('map', HTMLCanvasElement),
+  ctx = context2d(canvas);
 const sprite = new Image();
 sprite.src = 'art/tug-sprite.png';
-let engine,
-  state,
-  paused = true,
+/** @type {OrbitModule | null} */
+let engine = null;
+/** @type {Record<string, number> | null} */
+let state = null;
+let paused = true,
   accumulator = 0,
   lastTime = 0,
+  /** @type {number[][]} */
   trail = [],
   voyage = false,
   shownScene = -2;
-const keys = new Set(),
-  pointers = new Map(),
-  heavyLog = [];
-const controlButtons = [...document.querySelectorAll('[data-control]')];
-const voyageButtons = [...document.querySelectorAll('[data-voyage]')];
-const read = () =>
-  voyage
+/** @type {Set<string>} */
+const keys = new Set();
+/** @type {Map<number, string>} */
+const pointers = new Map();
+/** @type {HeavyEntry[]} */
+const heavyLog = [];
+/** @param {string} selector */
+const buttons = (selector) =>
+  [...document.querySelectorAll(selector)].filter(
+    (element) => element instanceof HTMLButtonElement,
+  );
+const controlButtons = buttons('[data-control]');
+const voyageButtons = buttons('[data-voyage]');
+/** The loaded C engine; the controls stay disabled until it is. */
+function core() {
+  if (!engine) throw new Error('the orbital engine is not loaded');
+  return engine;
+}
+const read = () => {
+  const engine = core();
+  return voyage
     ? Object.fromEntries(voyageFields.map((name, i) => [name, engine._vw_value(i)]))
     : Object.fromEntries(fieldNames.map((name, i) => [name, engine._flight_value(i)]));
-const pressed = (name) => keys.has(name) || [...pointers.values()].includes(name);
+};
+/** @param {string | undefined} name */
+const pressed = (name) =>
+  name !== undefined && (keys.has(name) || [...pointers.values()].includes(name));
 
 // ------------------------------------------------------------------ The Ice Run: words
 // Scenes open where the C voyage says (src/voyage.c); the words live here. Index = VS_* in src/voyage.h.
+/**
+ * @typedef {object} Scene
+ * @property {string} id
+ * @property {string} title
+ * @property {string[][]} [lines]
+ * @property {string[][]} [heldLines]
+ * @property {string[][]} [endings]
+ * @property {string[]} options
+ * @property {boolean} [heavy]
+ * @property {string} [note]
+ */
+/** @type {Scene[]} */
 const SCENES = [
   {
     id: 'dock',
@@ -226,29 +279,31 @@ const SCENES = [
 function clearControls() {
   keys.clear();
   pointers.clear();
-  [...controlButtons, ...voyageButtons].forEach((button) =>
-    button.setAttribute('aria-pressed', 'false'),
-  );
+  for (const button of [...controlButtons, ...voyageButtons]) {
+    button.setAttribute('aria-pressed', 'false');
+  }
 }
 function reflectControls() {
-  controlButtons.forEach((button) =>
-    button.setAttribute('aria-pressed', String(pressed(button.dataset.control))),
-  );
-  voyageButtons.forEach((button) =>
-    button.setAttribute('aria-pressed', String(pressed(button.dataset.voyage))),
-  );
+  for (const button of controlButtons) {
+    button.setAttribute('aria-pressed', String(pressed(button.dataset.control)));
+  }
+  for (const button of voyageButtons) {
+    button.setAttribute('aria-pressed', String(pressed(button.dataset.voyage)));
+  }
 }
 const finished = () => (voyage ? state && state.leg >= 5 : Boolean(state?.status));
+/** @param {boolean} value */
 function pause(value) {
   if (!value) $('welcome').hidden = true;
   paused = value;
   accumulator = 0;
   clearControls();
   $('pause').textContent = finished() ? 'Complete' : paused ? 'Resume' : 'Pause';
-  $('pause').disabled = finished();
+  $as('pause', HTMLButtonElement).disabled = Boolean(finished());
   $('pause').setAttribute('aria-pressed', String(paused));
   update();
 }
+/** @param {boolean} isVoyage */
 function setMode(isVoyage) {
   voyage = isVoyage;
   document.body.dataset.mode = voyage ? 'voyage' : 'flight';
@@ -258,16 +313,20 @@ function setMode(isVoyage) {
   $('voyage-controls').hidden = !voyage;
   $('legend-moon').textContent = voyage ? 'Moon (reference, no pull)' : 'Moon';
 }
+/** @param {number} mode 0 manual flight, 1 Hohmann demo, 2 The Ice Run */
 function reset(mode, start = true) {
   setMode(mode === 2);
-  if (voyage) engine._vw_reset();
-  else engine._flight_reset(mode);
-  state = read();
-  trail = [[state.x, state.y]];
+  if (voyage) core()._vw_reset();
+  else core()._flight_reset(mode);
+  const now = read();
+  state = now;
+  trail = [[now.x, now.y]];
   shownScene = -2;
   heavyLog.length = 0;
-  $('rate').value = mode === 1 ? '4' : '1';
-  controlButtons.forEach((button) => (button.disabled = mode === 1));
+  $as('rate', HTMLSelectElement).value = mode === 1 ? '4' : '1';
+  for (const button of controlButtons) {
+    button.disabled = mode === 1;
+  }
   pause(!start);
   showScene();
   draw();
@@ -279,7 +338,7 @@ function showScene() {
   const index = voyage && state ? state.scene : -1;
   if (index === shownScene) return;
   shownScene = index;
-  if (index < 0) {
+  if (index < 0 || !state) {
     box.hidden = true;
     return;
   }
@@ -302,7 +361,7 @@ function showScene() {
     ? s.endings[state.ending === 0 ? 0 : 1].map((line) => ['', line])
     : s.heldLines && state.turned === 1
       ? s.heldLines
-      : s.lines;
+      : (s.lines ?? []);
   for (const [who, words] of lines) {
     const p = document.createElement('p');
     if (who) {
@@ -330,30 +389,39 @@ function showScene() {
   });
   $('banner').hidden = true;
   box.scrollTop = 0;
-  options.firstChild.focus({ preventScroll: true });
+  const first = options.firstElementChild;
+  if (first instanceof HTMLElement) first.focus({ preventScroll: true });
 }
+/** @param {number} option */
 function answer(option) {
-  if (!voyage || state.scene < 0) return;
+  if (!voyage || !state || state.scene < 0) return;
   if (state.scene === 6) {
     reset(2, false);
     return;
   }
-  engine._vw_answer(option);
-  state = read();
+  core()._vw_answer(option);
+  const now = read();
+  state = now;
   showScene();
-  pause(state.scene >= 0);
+  pause(now.scene >= 0);
   update();
   draw();
 }
 
 // ------------------------------------------------------------------ readouts
+/**
+ * @param {string} id
+ * @param {number} value
+ * @param {number} decimals
+ */
 function fmt(id, value, decimals) {
   $(id).textContent = value.toFixed(decimals).replace('-', '−');
 }
 function update() {
   if (!state) return;
   if (voyage) return updateVoyage();
-  for (const [id, value, decimals] of [
+  /** @type {[string, number, number][]} */
+  const readouts = [
     ['radius', state.radius, 3],
     ['speed', state.speed, 3],
     ['energy', state.energy, 4],
@@ -361,8 +429,8 @@ function update() {
     ['relative', state.relative, 3],
     ['elapsed', state.time, 2],
     ['delta-v', state.dv, 4],
-  ])
-    fmt(id, value, decimals);
+  ];
+  for (const [id, value, decimals] of readouts) fmt(id, value, decimals);
   const demo = Boolean(state.mode),
     phase = state.phase;
   $('mode-label').textContent = demo ? 'DEMONSTRATION' : 'MANUAL';
@@ -411,6 +479,7 @@ const LEG_NAMES = [
   'LEG 5 / 5 · THE LAST LEG',
 ];
 function updateVoyage() {
+  if (!state) return;
   const leg = Math.min(state.leg, 4),
     red = state.fuel < state.redLine;
   fmt('v-fuel', state.fuel, 3);
@@ -477,6 +546,13 @@ function updateVoyage() {
 }
 
 // ------------------------------------------------------------------ drawing
+/**
+ * @param {number} x1
+ * @param {number} y1
+ * @param {number} x2
+ * @param {number} y2
+ * @param {string} colour
+ */
 function line(x1, y1, x2, y2, colour, width = 1) {
   ctx.strokeStyle = colour;
   ctx.lineWidth = width;
@@ -506,6 +582,7 @@ function draw() {
   const scale = Math.min(w - 60, h - 60) / (extent * 2),
     cx = w / 2,
     cy = h / 2;
+  /** @type {(x: number, y: number) => [number, number]} */
   const point = (x, y) => [cx + x * scale, cy - y * scale];
   const grid = Math.max(1, Math.ceil(extent / 6));
   $('plot-note').textContent =
@@ -530,7 +607,7 @@ function draw() {
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = '#9bb0bd';
-    ctx.fillText(`r = ${r}`, cx + r * scale * 0.707 + 5, cy - r * scale * 0.707 - 4);
+    ctx.fillText(`r = ${r}`, cx + r * scale * Math.SQRT1_2 + 5, cy - r * scale * Math.SQRT1_2 - 4);
   });
   if (voyage && state.leg < 5) drawVoyageRings(cx, cy, scale, point);
   if (trail.length > 1) {
@@ -615,7 +692,14 @@ function draw() {
   ctx.fillStyle = '#eee9df';
   ctx.fillText('TUG', sx + 20, sy - 12);
 }
+/**
+ * @param {number} cx
+ * @param {number} cy
+ * @param {number} scale
+ * @param {(x: number, y: number) => [number, number]} point
+ */
 function drawVoyageRings(cx, cy, scale, point) {
+  if (!state) return;
   // The target ring, and the orbit the gauges read (apoapsis/periapsis readouts, wobbling when nobody steadies them).
   ctx.setLineDash([7, 5]);
   ctx.strokeStyle = '#9fe0a8';
@@ -635,8 +719,8 @@ function drawVoyageRings(cx, cy, scale, point) {
           : 'TARGET';
   ctx.fillText(
     `${label} r = ${state.target.toFixed(2)}`,
-    cx - state.target * scale * 0.707 - 4,
-    cy + state.target * scale * 0.707 + 14,
+    cx - state.target * scale * Math.SQRT1_2 - 4,
+    cy + state.target * scale * Math.SQRT1_2 + 14,
   );
   const apo = state.apoRead,
     peri = Math.max(0.05, state.periRead);
@@ -661,18 +745,21 @@ function drawVoyageRings(cx, cy, scale, point) {
 }
 
 // ------------------------------------------------------------------ loop and input
+/** @param {number} now */
 function frame(now) {
   if (!lastTime) lastTime = now;
   if (engine && state && !paused && !finished() && !(voyage && state.scene >= 0)) {
-    accumulator += Math.min((now - lastTime) / 1000, 0.1) * Number($('rate').value);
+    accumulator +=
+      Math.min((now - lastTime) / 1000, 0.1) * Number($as('rate', HTMLSelectElement).value);
     while (accumulator >= 0.04 && !finished() && !(voyage && state.scene >= 0)) {
       if (voyage) {
         const command = pressed('raise') ? 1 : pressed('lower') ? 2 : pressed('match') ? 3 : 0;
         const tows = state.tows;
         engine._vw_command(command);
         engine._vw_tick(1);
-        state = read();
-        if (state.tows !== tows) trail.length = 0;
+        const next = read();
+        state = next;
+        if (next.tows !== tows) trail.length = 0;
       } else {
         const turn = Number(pressed('left')) - Number(pressed('right'));
         engine._flight_steer(turn);
@@ -680,7 +767,8 @@ function frame(now) {
         engine._flight_tick(1);
         state = read();
       }
-      trail.push([state.x, state.y]);
+      const at = state;
+      trail.push([at.x, at.y]);
       if (trail.length > 2000) trail.shift();
       accumulator -= 0.04;
     }
@@ -694,6 +782,7 @@ function frame(now) {
   draw();
   requestAnimationFrame(frame);
 }
+/** @type {Record<string, string>} */
 const keyMap = {
   a: 'left',
   ArrowLeft: 'left',
@@ -702,6 +791,7 @@ const keyMap = {
   w: 'burn',
   ArrowUp: 'burn',
 };
+/** @type {Record<string, string>} */
 const voyageKeys = {
   w: 'raise',
   ArrowUp: 'raise',
@@ -710,10 +800,11 @@ const voyageKeys = {
   m: 'match',
   ' ': 'match',
 };
+/** @param {EventTarget | null} target */
+const tagOf = (target) => (target instanceof Element ? target.tagName : '');
 document.addEventListener('keydown', (event) => {
-  if (!engine || (/^(SELECT|INPUT|BUTTON)$/.test(event.target.tagName) && event.key === ' '))
-    return;
-  if (!engine || /^(SELECT|INPUT)$/.test(event.target.tagName)) return;
+  if (!engine || (/^(SELECT|INPUT|BUTTON)$/.test(tagOf(event.target)) && event.key === ' ')) return;
+  if (!engine || !state || /^(SELECT|INPUT)$/.test(tagOf(event.target))) return;
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
   if (voyage) {
     if (state.scene >= 0) return;
@@ -735,24 +826,33 @@ document.addEventListener('keyup', (event) => {
   keys.delete(voyageKeys[key]);
   reflectControls();
 });
+/**
+ * @param {HTMLButtonElement} button
+ * @param {string | undefined} name
+ */
 function holdButton(button, name) {
   button.setAttribute('aria-pressed', 'false');
   button.addEventListener('pointerdown', (event) => {
-    if (!engine || paused || finished() || (voyage ? state.scene >= 0 : state.mode)) return;
+    if (!engine || !state || !name || paused || finished()) return;
+    if (voyage ? state.scene >= 0 : state.mode) return;
     event.preventDefault();
     button.setPointerCapture(event.pointerId);
     pointers.set(event.pointerId, name);
     reflectControls();
   });
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((type) =>
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
     button.addEventListener(type, (event) => {
-      pointers.delete(event.pointerId);
+      if (event instanceof PointerEvent) pointers.delete(event.pointerId);
       reflectControls();
-    }),
-  );
+    });
+  }
 }
-controlButtons.forEach((button) => holdButton(button, button.dataset.control));
-voyageButtons.forEach((button) => holdButton(button, button.dataset.voyage));
+for (const button of controlButtons) {
+  holdButton(button, button.dataset.control);
+}
+for (const button of voyageButtons) {
+  holdButton(button, button.dataset.voyage);
+}
 window.addEventListener('blur', () => {
   if (engine) pause(true);
 });
@@ -760,19 +860,20 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && engine) pause(true);
 });
 // On a short screen (a phone held sideways) bring the whole chart into view once a flight is chosen.
+/** @param {number} mode */
 const choose = (mode) => {
   $('welcome').hidden = true;
   reset(mode);
-  if (innerHeight < 560) document.querySelector('.chart').scrollIntoView({ block: 'start' });
+  if (innerHeight < 560) document.querySelector('.chart')?.scrollIntoView({ block: 'start' });
 };
 $('voyage').onclick = () => choose(2);
 $('welcome-start').onclick = () => choose(2);
 $('pilot').onclick = () => choose(0);
 $('demo').onclick = () => choose(1);
 $('pause').onclick = () => {
-  if (!finished() && !(voyage && state.scene >= 0)) pause(!paused);
+  if (!finished() && !(voyage && state && state.scene >= 0)) pause(!paused);
 };
-$('reset').onclick = () => reset(voyage ? 2 : state.mode, false);
+$('reset').onclick = () => reset(voyage ? 2 : (state?.mode ?? 0), false);
 $('voyage-reset').onclick = () => reset(2, false);
 $('rate').onchange = () => {
   accumulator = 0;
@@ -800,8 +901,9 @@ Object.defineProperty(window, 'orbitView', {
 // Common test hook of the playability gate (TM-59 project-context, rules/playability.json). Read-only.
 // Logical units are the canvas's CSS pixels, so a point is (clientX - canvas.left, clientY - canvas.top).
 // DOM words and buttons are measured by the gate directly; the canvas labels are measured through fillText.
+/** @param {Element | null} el */
 function fromCanvas(el) {
-  if (!el || el.hidden || !el.getClientRects().length) return null;
+  if (!el || (el instanceof HTMLElement && el.hidden) || !el.getClientRects().length) return null;
   const c = canvas.getBoundingClientRect(),
     r = el.getBoundingClientRect();
   return { x: r.left + r.width / 2 - c.left, y: r.top + r.height / 2 - c.top };
@@ -835,7 +937,7 @@ window.__tmGate = {
   hint: () => {
     if (!state) return null;
     if (!$('welcome').hidden) return fromCanvas($('welcome-start'));
-    if (voyage && state.scene >= 0) return fromCanvas($('scene-options').firstChild);
+    if (voyage && state.scene >= 0) return fromCanvas($('scene-options').firstElementChild);
     if (paused && !finished()) return fromCanvas($('pause'));
     return null;
   },
@@ -845,9 +947,17 @@ Promise.resolve()
   .then((module) => {
     engine = module;
     reset(0, false);
-    ['voyage', 'welcome-start', 'pilot', 'demo', 'pause', 'reset', 'voyage-reset'].forEach(
-      (id) => ($(id).disabled = false),
-    );
+    for (const id of [
+      'voyage',
+      'welcome-start',
+      'pilot',
+      'demo',
+      'pause',
+      'reset',
+      'voyage-reset',
+    ]) {
+      $as(id, HTMLButtonElement).disabled = false;
+    }
     requestAnimationFrame(frame);
   })
   .catch(() => {

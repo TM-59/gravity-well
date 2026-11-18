@@ -1,10 +1,13 @@
 /* Local only: exercise the real WASM with keyboard/pointer input and capture it. */
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+/** @type {typeof import('playwright')} */
+const playwright = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium } = playwright;
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const root = path.resolve('dist');
+/** @type {Record<string, string>} */
 const mime = {
   '.html': 'text/html',
   '.js': 'text/javascript',
@@ -16,7 +19,7 @@ const mime = {
 const server = http.createServer((req, res) => {
   const file = path.resolve(
     root,
-    '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname),
+    `.${decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname)}`,
   );
   const target = file === root ? path.join(root, 'index.html') : file;
   if (!target.startsWith(root + path.sep)) {
@@ -31,18 +34,42 @@ const server = http.createServer((req, res) => {
     }
   });
 });
-let browser,
-  checks = 0;
+/** @type {import('playwright').Browser | undefined} */
+let browser;
+let checks = 0;
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ */
 const check = (condition, message) => {
   assert.ok(condition, message);
   checks++;
 };
-const observe = (page) => page.evaluate(() => window.orbitView.snapshot);
+/** @param {import('playwright').Page} page */
+const observe = async (page) => {
+  const snapshot = await page.evaluate(() => window.orbitView?.snapshot ?? null);
+  if (!snapshot) throw new Error('the observatory has no snapshot yet');
+  return snapshot;
+};
+/** @param {import('playwright').Locator} locator */
+const boxOf = async (locator) => {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('the element is not visible');
+  return box;
+};
+/**
+ * @param {import('playwright').Page} page
+ * @param {string} url
+ */
 async function ready(page, url) {
   await page.goto(url);
   await page.waitForFunction(() => window.orbitView?.snapshot?.artReady);
   await page.clock.install();
 }
+/**
+ * @param {import('playwright').Page} page
+ * @param {string} name
+ */
 async function capture(page, name) {
   await page.screenshot({
     path: `docs/images/${name}.jpg`,
@@ -53,12 +80,18 @@ async function capture(page, name) {
 }
 /* A pilot that only reads the screen's numbers and Ilse's count: Raise/Lower until the far side of the orbit touches the
  * ring (or her "cut"), coast to the ring (or her "now"), Match until the error is tiny; on the pod's ring, engine off. */
+/**
+ * @param {import('playwright').Page} page
+ * @param {{ route: number, ilse: number, shots: boolean }} plan
+ */
 async function flyIceRun(page, { route, ilse, shots }) {
   await page.getByRole('button', { name: 'Fly the ice run' }).click();
   await page.selectOption('#rate', '4');
+  /** @type {(string | null)[]} */
   const order = [];
-  let held = null,
-    phase = 'transfer',
+  /** @type {'raise' | 'lower' | 'match' | null} */
+  let held = null;
+  let phase = 'transfer',
     heavyQuiet = 0,
     guard = 0,
     shot = 0,
@@ -67,6 +100,7 @@ async function flyIceRun(page, { route, ilse, shots }) {
     coast = 0,
     dir = true;
   const keyFor = { raise: 'w', lower: 's', match: 'm' };
+  /** @param {'raise' | 'lower' | 'match' | null} name */
   const set = async (name) => {
     if (held === name) return;
     if (held) await page.keyboard.up(keyFor[held]);
@@ -174,10 +208,14 @@ async function flyIceRun(page, { route, ilse, shots }) {
   }
 }
 async function run() {
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const origin = `http://127.0.0.1:${server.address().port}`;
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(undefined)));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('the server has no port');
+  const origin = `http://127.0.0.1:${address.port}`;
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  /** @type {string[]} */
   const errors = [],
+    /** @type {string[]} */
     external = [];
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
@@ -193,7 +231,7 @@ async function run() {
     });
   });
   const page = await context.newPage();
-  await ready(page, origin + '/');
+  await ready(page, `${origin}/`);
   check((await observe(page)).paused, 'starts paused');
   await capture(page, 'observatory');
   await page.getByRole('button', { name: 'Take control' }).click();
@@ -244,10 +282,10 @@ async function run() {
     'ice run, turned back: every scene in order',
   );
   check(ice.heavyQuiet === 3, 'heavy scenes shown on a dark panel with no banner, before or after');
-  check(/empty pod is still clamped/.test(ice.endingText), 'the turned-back ending is shown');
+  check(/empty pod is still clamped/.test(ice.endingText ?? ''), 'the turned-back ending is shown');
   const held = await flyIceRun(page, { route: 0, ilse: 1, shots: false });
   check(
-    held.ending === 1 && /last call cut off/.test(held.endingText),
+    held.ending === 1 && /last call cut off/.test(held.endingText ?? ''),
     'ice run, held the heading: the other ending',
   );
   check(held.time < ice.time, 'holding the heading arrives on an earlier clock');
@@ -259,11 +297,11 @@ async function run() {
   // Narrow viewport + touch-generated Pointer Events. A cancelled touch must not stick.
   const mobile = await context.newPage();
   await mobile.setViewportSize({ width: 390, height: 844 });
-  await ready(mobile, origin + '/');
+  await ready(mobile, `${origin}/`);
   await mobile.getByRole('button', { name: 'Take control' }).click();
   const button = mobile.getByLabel('Hold to burn');
   await button.scrollIntoViewIfNeeded();
-  const box = await button.boundingBox();
+  const box = await boxOf(button);
   const client = await context.newCDPSession(mobile);
   await client.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
@@ -283,10 +321,10 @@ async function run() {
   );
   await mobile.getByRole('button', { name: 'Fly the ice run' }).click();
   check(await mobile.locator('#scene').isVisible(), 'the dock scene opens on a phone');
-  await mobile.evaluate(() => document.querySelector('.chart').scrollIntoView());
+  await mobile.evaluate(() => document.querySelector('.chart')?.scrollIntoView());
   await capture(mobile, 'mobile-ice-run');
   for (const el of await mobile.locator('#scene-options button').all()) {
-    const rect = await el.boundingBox();
+    const rect = await boxOf(el);
     check(rect.height >= 44, 'scene answer at least 44 px tall');
   }
   const sizes = await mobile
@@ -295,12 +333,12 @@ async function run() {
   check(Math.min(...sizes) >= 13, 'scene text readable on a phone');
   await mobile.locator('#scene-options button').first().click();
   for (const el of await mobile.locator('#voyage-controls button').all()) {
-    const rect = await el.boundingBox();
+    const rect = await boxOf(el);
     check(rect.width >= 44 && rect.height >= 44, 'ice run control at least 44 px');
   }
   await mobile.getByRole('button', { name: 'Take control' }).click();
   for (const el of await mobile.locator('#flight-controls button').all()) {
-    const rect = await el.boundingBox();
+    const rect = await boxOf(el);
     check(rect.width >= 44 && rect.height >= 44, 'touch target at least 44 px');
   }
   await mobile.evaluate(() => scrollTo(0, 0));
@@ -309,7 +347,7 @@ async function run() {
   // Artwork is optional for simulation. Block both assets; then engine failures are explicit.
   const fallback = await context.newPage();
   await fallback.route('**/art/**', (route) => route.fulfill({ status: 200, body: '' }));
-  await fallback.goto(origin + '/');
+  await fallback.goto(`${origin}/`);
   await fallback.waitForFunction(() => window.orbitView?.snapshot);
   await fallback.clock.install();
   await fallback.getByRole('button', { name: 'Take control' }).click();
@@ -334,7 +372,7 @@ async function run() {
       .filter((x) => /\.(jpg|png)$/.test(x))
       .sort(),
   };
-  fs.writeFileSync('docs/validation.json', JSON.stringify(result, null, 2) + '\n');
+  fs.writeFileSync('docs/validation.json', `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result, null, 2));
 }
 run()

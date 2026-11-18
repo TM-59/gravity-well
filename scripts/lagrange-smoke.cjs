@@ -1,13 +1,17 @@
 /* Local browser and native/WASM integration checks; no downloads or services. */
 const { env } = process;
-const { chromium } = require(env.PLAYWRIGHT_MODULE || 'playwright');
+/** @type {typeof import('playwright')} */
+const playwright = require(env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium } = playwright;
 const assert = require('node:assert/strict');
 const fs = require('node:fs'),
   http = require('node:http'),
   path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const create = require('../dist/cr3bp.js');
+/** @type {typeof createLagrange} The module `make web` builds (dist/ is not tracked). */
+const create = require(path.join(__dirname, '../dist/cr3bp.js'));
 const root = path.resolve('dist');
+/** @type {Record<string, string>} */
 const mime = {
   '.html': 'text/html',
   '.js': 'text/javascript',
@@ -15,7 +19,7 @@ const mime = {
   '.css': 'text/css',
 };
 const server = http.createServer((req, res) => {
-  const file = path.resolve(root, '.' + new URL(req.url, 'http://localhost').pathname);
+  const file = path.resolve(root, `.${new URL(req.url ?? '/', 'http://localhost').pathname}`);
   const target = file === root ? path.join(root, 'index.html') : file;
   if (!target.startsWith(root + path.sep)) {
     res.writeHead(403).end();
@@ -29,13 +33,23 @@ const server = http.createServer((req, res) => {
     }
   });
 });
-let browser,
-  checks = 0;
+/** @type {import('playwright').Browser | undefined} */
+let browser;
+let checks = 0;
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ */
 const check = (condition, message) => {
   assert.ok(condition, message);
   checks++;
 };
-const snap = (page) => page.evaluate(() => window.lagrangeView.snapshot);
+/** @param {import('playwright').Page} page */
+const snap = async (page) => {
+  const snapshot = await page.evaluate(() => window.lagrangeView?.snapshot ?? null);
+  if (!snapshot) throw new Error('the lab has no snapshot yet');
+  return snapshot;
+};
 async function run() {
   fs.mkdirSync('test-results', { recursive: true });
   const wasm = await create({ wasmBinary: fs.readFileSync('dist/cr3bp.wasm') });
@@ -60,11 +74,16 @@ async function run() {
       wasm._lab_tick(1);
     }
   }
-  await new Promise((resolve) => server.listen(0, 'localhost', resolve));
-  const origin = `http://localhost:${server.address().port}`;
+  await new Promise((resolve) => server.listen(0, 'localhost', () => resolve(undefined)));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('the server has no port');
+  const origin = `http://localhost:${address.port}`;
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  /** @type {string[]} */
   const errors = [],
+    /** @type {string[]} */
     external = [],
+    /** @type {{ minFont: number, minTarget: number, path: string }[]} */
     screens = [];
   for (const [width, height] of [
     [1440, 1000],
@@ -77,6 +96,7 @@ async function run() {
       hasTouch: width < 1000,
     });
     const page = await context.newPage();
+    /** @param {import('playwright').Locator} locator */
     const activate = (locator) => (width >= 1000 ? locator.click() : locator.tap());
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => {
@@ -86,14 +106,16 @@ async function run() {
       if (!r.url().startsWith(origin) && !r.url().startsWith('data:')) external.push(r.url());
     });
     await page.addInitScript(() => {
-      window.canvasFonts = [];
+      /** @type {number[]} */
+      const fonts = [];
+      window.canvasFonts = fonts;
       const fill = CanvasRenderingContext2D.prototype.fillText;
       CanvasRenderingContext2D.prototype.fillText = function (...args) {
-        window.canvasFonts.push(parseFloat(this.font));
+        fonts.push(parseFloat(this.font));
         return fill.apply(this, args);
       };
     });
-    await page.goto(origin + '/');
+    await page.goto(`${origin}/`);
     await activate(page.getByRole('link', { name: 'Explore Lagrange points' }));
     await page.waitForFunction(() => window.lagrangeView?.snapshot);
     await page.clock.install();
@@ -114,7 +136,7 @@ async function run() {
       'closed comparison resets and is labelled separately',
     );
     check(
-      (await page.locator('#comparison').textContent()).startsWith('Comparison only'),
+      (await page.locator('#comparison').textContent())?.startsWith('Comparison only'),
       'comparison is not claimed to be the particle C',
     );
     await page.selectOption('#level', '2');
@@ -155,7 +177,7 @@ async function run() {
       'C inertial position is the rotated rotating position',
     );
     check(
-      (await page.locator('#frame').textContent()).startsWith('Inertial'),
+      (await page.locator('#frame').textContent())?.startsWith('Inertial'),
       'plot title names the frame',
     );
     if (width === 1440) {
@@ -183,7 +205,7 @@ async function run() {
       'equal masses: L1 and L4 sit on the symmetry axis',
     );
     check(
-      (await page.locator('#stability').textContent()).includes('above Routh'),
+      (await page.locator('#stability').textContent())?.includes('above Routh'),
       'unstable L4 is stated',
     );
     await activate(page.getByRole('button', { name: 'L4 libration', exact: true }));
@@ -202,7 +224,7 @@ async function run() {
       'below Routh both L4 modes oscillate',
     );
     check(
-      (await page.locator('#stability').textContent()).includes('below Routh'),
+      (await page.locator('#stability').textContent())?.includes('below Routh'),
       'stable L4 is stated',
     );
     await page.locator('#mass').focus();
@@ -216,7 +238,7 @@ async function run() {
       const els = [...document.querySelectorAll('body *')].filter(
         (e) =>
           e.getClientRects().length &&
-          [...e.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()),
+          [...e.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()),
       );
       const fonts = els.map((e) => parseFloat(getComputedStyle(e).fontSize));
       const targets = [...document.querySelectorAll('button,select,a,input')].map((e) => {
@@ -224,7 +246,7 @@ async function run() {
         return [r.width, r.height];
       });
       return {
-        minFont: Math.min(...fonts, ...window.canvasFonts),
+        minFont: Math.min(...fonts, ...(window.canvasFonts ?? [])),
         minTarget: Math.min(...targets.flat()),
       };
     });
@@ -248,7 +270,7 @@ async function run() {
   // An unavailable WASM must produce a readable recovery message, not an empty lab.
   const failure = await browser.newPage();
   await failure.route('**/cr3bp.wasm', (r) => r.fulfill({ status: 503, body: 'unavailable' }));
-  await failure.goto(origin + '/lagrange.html');
+  await failure.goto(`${origin}/lagrange.html`);
   await failure.getByRole('status').filter({ hasText: 'Could not load the C engine' }).waitFor();
   check(await failure.locator('#l4').isDisabled(), 'engine failure keeps controls disabled');
   await failure.close();
@@ -261,7 +283,7 @@ async function run() {
     nativeWasm: { rows: 100, columns: 21, maxRelativeDifference: maxDifference },
     screens,
   };
-  fs.writeFileSync('test-results/lagrange-smoke.json', JSON.stringify(result, null, 2) + '\n');
+  fs.writeFileSync('test-results/lagrange-smoke.json', `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result, null, 2));
 }
 run()
