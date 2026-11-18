@@ -26,8 +26,11 @@ enum FlightValue {
 };
 /* mode 0: the original moon rendezvous; mode 1: star-only Hohmann 1 -> 2. */
 void flight_reset(int mode);
-/* A frame is ten existing 0.004-unit Verlet steps. turn: -1,0,+1; burn: 0,1. */
-void flight_tick(int frames, int turn, int burn);
+/* The controls held during the next frames: turn -1, 0, +1; burn 0, 1. */
+void flight_steer(int turn);
+void flight_throttle(int burn);
+/* A frame is ten existing 0.004-unit Verlet steps. */
+void flight_tick(int frames);
 double flight_value(int field);
 
 #endif

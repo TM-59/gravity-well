@@ -94,7 +94,7 @@ static int snapshot(void)
     World w = world_default();
     Ship s = {1.0, 0.0, 0.0, circular_speed(&w, 1.0)};
     static char buf[RENDER_COLS * RENDER_ROWS * 4];
-    if (!render_frame(&w, &s, 0.0, PI / 2.0, &s, 1, buf, sizeof buf)) {
+    if (!render_frame(&w, &s, (RenderPose){0.0, PI / 2.0}, &s, 1, buf, sizeof buf)) {
         return 1;
     }
     (void)fputs(buf, stdout);
@@ -161,7 +161,7 @@ static int gif_demo(const char *path)
             }
         }
         if (k % 40 == 0) {
-            render_frame(&w, &s, t, atan2(s.vy, s.vx), trail, tlen, buf, sizeof buf);
+            render_frame(&w, &s, (RenderPose){t, atan2(s.vy, s.vx)}, trail, tlen, buf, sizeof buf);
             gif_draw_text(px, cw, ch, buf, scale, gif_colour);
             if (gif_frame(g, px, 0)) {
                 return 1;
@@ -170,7 +170,7 @@ static int gif_demo(const char *path)
         orbit_step(&w, &s, t, (Burn){0.0, 0.0}, dt);
         t += dt;
     }
-    render_frame(&w, &s, t, atan2(s.vy, s.vx), trail, tlen, buf, sizeof buf);
+    render_frame(&w, &s, (RenderPose){t, atan2(s.vy, s.vx)}, trail, tlen, buf, sizeof buf);
     gif_draw_text(px, cw, ch, buf, scale, gif_colour);
     if (gif_frame(g, px, 200) || gif_close(g)) {
         return 1;
@@ -251,7 +251,7 @@ static int play(void)
             my = moon.y;
         }
         double r = hypot(s.x, s.y), dm = hypot(s.x - mx, s.y - my);
-        render_frame(&w, &s, t, heading, trail, tlen, buf, sizeof buf);
+        render_frame(&w, &s, (RenderPose){t, heading}, trail, tlen, buf, sizeof buf);
         printf("\033[H%s", buf);
         printf("r %.2f  speed %.2f  energy %+.3f  moon dist %.2f  %s      \n", r, hypot(s.vx, s.vy),
                ship_energy(&w, &s), dm, burn > 0.0 ? "BURN" : "coast");

@@ -58,22 +58,29 @@ int voyage_ending(const Voyage *v)
 
 static int on(const Voyage *v, unsigned effect) { return (v->effects & effect) != 0; }
 
-static void elements(const Voyage *v, double *a, double *e, double *apo, double *peri)
+/* Orbital elements about the star: semi-major axis, eccentricity, apoapsis, periapsis. */
+typedef struct {
+    double a, e, apo, peri;
+} Elements;
+
+static Elements elements(const Voyage *v)
 {
+    Elements el;
     const Ship *s = &v->ship;
     double r = hypot(s->x, s->y), v2 = s->vx * s->vx + s->vy * s->vy;
     double energy = 0.5 * v2 - v->world.star_gm / r, h = s->x * s->vy - s->y * s->vx;
     double ecc2 = 1.0 + 2.0 * energy * h * h / (v->world.star_gm * v->world.star_gm);
-    *e = sqrt(fmax(0.0, ecc2));
+    el.e = sqrt(fmax(0.0, ecc2));
     if (energy >= 0.0) {
-        *a = 1e9;
-        *apo = 1e9;
-        *peri = h * h / (v->world.star_gm * (1.0 + *e));
-        return;
+        el.a = 1e9;
+        el.apo = 1e9;
+        el.peri = h * h / (v->world.star_gm * (1.0 + el.e));
+        return el;
     }
-    *a = -v->world.star_gm / (2.0 * energy);
-    *apo = *a * (1.0 + *e);
-    *peri = *a * (1.0 - *e);
+    el.a = -v->world.star_gm / (2.0 * energy);
+    el.apo = el.a * (1.0 + el.e);
+    el.peri = el.a * (1.0 - el.e);
+    return el;
 }
 
 double voyage_wobble(const Voyage *v)
@@ -123,8 +130,9 @@ int voyage_cue(const Voyage *v)
     if (!v->count || !on(v, VE_DOCK) || v->scene != VS_NONE || v->leg >= V_LEGS) {
         return 0;
     }
-    double a, e, apo, peri, r = hypot(v->ship.x, v->ship.y), t = v->target_r;
-    elements(v, &a, &e, &apo, &peri);
+    double r = hypot(v->ship.x, v->ship.y), t = v->target_r;
+    const Elements el = elements(v);
+    double e = el.e, apo = el.apo, peri = el.peri;
     if (v->command == VC_RAISE && apo >= t) {
         return 1;
     }
@@ -230,8 +238,9 @@ static void tow(Voyage *v, int carry)
     raise_banner(v, VB_TOW);
 }
 
-void voyage_tick(Voyage *v, int frames, int command)
+void voyage_tick(Voyage *v, VoyageInput in)
 {
+    int frames = in.frames, command = in.command;
     if (frames < 0 || v->scene != VS_NONE || v->leg >= V_LEGS) {
         return;
     }
@@ -246,12 +255,15 @@ void voyage_tick(Voyage *v, int frames, int command)
         v->command = command;
         for (int k = 0; k < V_SUBSTEPS; k++) {
             double heading = atan2(v->ship.vy, v->ship.vx), burn = 0.0;
-            if (v->drift > 0.0 && (v->drift -= V_DT) <= 0.0) {
-                v->drift = 0.0;
-                if (v->refuel && v->fuel < TOW_FUEL) {
-                    v->fuel = TOW_FUEL;
+            if (v->drift > 0.0) {
+                v->drift -= V_DT;
+                if (v->drift <= 0.0) {
+                    v->drift = 0.0;
+                    if (v->refuel && v->fuel < TOW_FUEL) {
+                        v->fuel = TOW_FUEL;
+                    }
+                    v->refuel = 0;
                 }
-                v->refuel = 0;
             }
             if (v->fuel > 0.0 && v->drift <= 0.0 && command != VC_COAST) {
                 if (command == VC_RAISE) {
@@ -282,17 +294,22 @@ void voyage_tick(Voyage *v, int frames, int command)
             }
         }
         v->frames++;
-        if (v->banner_left > 0.0 && (v->banner_left -= V_DT * V_SUBSTEPS) <= 0.0) {
-            v->banner = VB_NONE;
+        if (v->banner_left > 0.0) {
+            v->banner_left -= V_DT * V_SUBSTEPS;
+            if (v->banner_left <= 0.0) {
+                v->banner = VB_NONE;
+            }
         }
-        double r = hypot(v->ship.x, v->ship.y), a, e, apo, peri;
-        elements(v, &a, &e, &apo, &peri);
+        double r = hypot(v->ship.x, v->ship.y);
+        const Elements el = elements(v);
+        double a = el.a, e = el.e;
         int on_ring = fabs(a - v->target_r) < CLEAR_A * v->target_r && e < CLEAR_E;
         double need = voyage_hold_need(v), frame = V_DT * V_SUBSTEPS;
         if (v->held > 0.0) {
             /* Grappled to the pod: the leg ends when its fuel is across. The clock keeps running
              * while you wait. */
-            if ((v->held += frame) >= need - 1e-9) {
+            v->held += frame;
+            if (v->held >= need - 1e-9) {
                 clear_leg(v);
                 continue;
             }
@@ -380,8 +397,9 @@ int voyage_answer(Voyage *v, int option)
 
 double voyage_value(const Voyage *v, int field)
 {
-    double a, e, apo, peri, mx, my;
-    elements(v, &a, &e, &apo, &peri);
+    double mx, my;
+    const Elements el = elements(v);
+    double a = el.a, e = el.e, apo = el.apo, peri = el.peri;
     {
         const Vec2 moon = moon_position(&v->world, v->time);
         mx = moon.x;

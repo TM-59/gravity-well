@@ -124,13 +124,14 @@ static void test_render_fits_the_screen(void)
     World w = world_default();
     Ship s = {1.0, 0.0, 0.0, 1.0};
     static char buf[RENDER_COLS * RENDER_ROWS * 2];
-    size_t used = render_frame(&w, &s, 0.0, 0.0, &s, 1, buf, sizeof buf);
+    size_t used = render_frame(&w, &s, (RenderPose){0.0, 0.0}, &s, 1, buf, sizeof buf);
     int lines = 0;
     for (size_t i = 0; i < used; i++) {
         lines += buf[i] == '\n';
     }
     CHECK(lines == RENDER_ROWS, "expected %d lines, got %d", RENDER_ROWS, lines);
-    CHECK(render_frame(&w, &s, 0.0, 0.0, &s, 1, buf, 8) == 0, "tiny buffer must be refused");
+    CHECK(render_frame(&w, &s, (RenderPose){0.0, 0.0}, &s, 1, buf, 8) == 0,
+          "tiny buffer must be refused");
 }
 
 int main(void)

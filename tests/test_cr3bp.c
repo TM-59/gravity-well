@@ -147,20 +147,23 @@ static void test_contours(void)
 
 static void test_lab(void)
 {
-    lab_reset(0, 0);
+    lab_set_level(0);
+    lab_reset(0);
     double x = lab_value(LAB_X);
     lab_tick(-1);
     CHECK(lab_value(LAB_TIME) == 0);
     lab_tick(1);
     CHECK(lab_value(LAB_TIME) > 0 && lab_value(LAB_X) != x);
-    lab_reset(0, 0);
+    lab_set_level(0);
+    lab_reset(0);
     CHECK(lab_value(LAB_X) == x && lab_value(LAB_ERROR) == 0);
     for (int i = 0; i < 6; i++) {
         lab_tick(250);
     }
     CHECK(lab_value(LAB_TIME) > 59.99 && lab_value(LAB_ERROR) < 1e-6);
-    lab_reset(1, 0);
-    double start = lab_value(LAB_X), l1 = lab_point(1, 0);
+    lab_set_level(0);
+    lab_reset(1);
+    double start = lab_value(LAB_X), l1 = lab_point_x(1);
     int passed = 0;
     for (int i = 0; i < 100; i++) {
         lab_tick(1);
@@ -174,13 +177,15 @@ static void test_lab(void)
         lab_tick(250);
     }
     CHECK(lab_value(LAB_STATUS) > 0 && lab_value(LAB_ERROR) <= 1e-6);
-    lab_reset(0, 1);
-    CHECK(lab_allowed(lab_point(1, 0), 0) < 0);
-    lab_reset(0, 2);
-    CHECK(lab_allowed(lab_point(1, 0), 0) > 0);
-    CHECK(isfinite(lab_segment(0, 0)) && isnan(lab_segment(-1, 0)));
+    lab_set_level(1);
+    lab_reset(0);
+    CHECK(lab_allowed(lab_point_x(1), 0) < 0);
+    lab_set_level(2);
+    lab_reset(0);
+    CHECK(lab_allowed(lab_point_x(1), 0) > 0);
+    CHECK(isfinite(lab_segment_x1(0)) && isnan(lab_segment_x1(-1)));
     for (int i = 1; i <= 5; i++) {
-        CHECK(isfinite(lab_point(i, 2)));
+        CHECK(isfinite(lab_point_c(i)));
     }
 }
 
@@ -246,7 +251,8 @@ static void test_frames(void)
 
 static void test_stability(void)
 {
-    double g, w[2], xx, xy, yy, h = 1e-5, worst = 0;
+    Modes md, md5;
+    double h = 1e-5, worst = 0;
     /* Hessian against central differences of the at-rest acceleration. */
     const double masses[] = {0.001, 1.0 / 101, 0.1, 0.3, 0.5};
     for (size_t m = 0; m < sizeof masses / sizeof *masses; m++) {
@@ -258,32 +264,32 @@ static void test_stability(void)
         cr3bp_acceleration(mu, &b, &bx, &by);
         cr3bp_acceleration(mu, &c, &cx, &cy);
         cr3bp_acceleration(mu, &d, &dx, &dy);
-        cr3bp_hessian(mu, 0.43, 0.35, &xx, &xy, &yy);
-        CHECK(fabs(xx - (ax - bx) / (2 * h)) < 1e-6 && fabs(yy - (cy - dy) / (2 * h)) < 1e-6);
-        CHECK(fabs(xy - (ay - by) / (2 * h)) < 1e-6 && fabs(xy - (cx - dx) / (2 * h)) < 1e-6);
+        const Hessian hs = cr3bp_hessian(mu, (Vec2){0.43, 0.35});
+        CHECK(fabs(hs.xx - (ax - bx) / (2 * h)) < 1e-6 && fabs(hs.yy - (cy - dy) / (2 * h)) < 1e-6);
+        CHECK(fabs(hs.xy - (ay - by) / (2 * h)) < 1e-6 && fabs(hs.xy - (cx - dx) / (2 * h)) < 1e-6);
         /* Collinear points: one growing mode and one oscillation, at every mass ratio. */
         for (int i = 1; i <= 3; i++) {
-            CHECK(cr3bp_modes(mu, i, &g, w) == 1 && g > 0 && w[0] > 0);
+            CHECK(cr3bp_modes(mu, i, &md) == 1 && md.growth > 0 && md.omega[0] > 0);
             double measured = lab_measured_growth(mu, i);
-            worst = fmax(worst, fabs(measured / g - 1));
-            CHECK(fabs(measured / g - 1) < 1e-4);
+            worst = fmax(worst, fabs(measured / md.growth - 1));
+            CHECK(fabs(measured / md.growth - 1) < 1e-4);
         }
         /* L4 and L5: closed forms Oxx=3/4, Oyy=9/4, Oxy=+-(3 sqrt3/4)(1-2mu). */
         Ship l4 = cr3bp_lagrange(mu, 4);
-        cr3bp_hessian(mu, l4.x, l4.y, &xx, &xy, &yy);
-        CHECK(fabs(xx - 0.75) < 1e-13 && fabs(yy - 2.25) < 1e-13 &&
-              fabs(xy - 0.75 * sqrt(3.0) * (1 - 2 * mu)) < 1e-13);
-        double g5, w5[2];
-        int n4 = cr3bp_modes(mu, 4, &g, w), n5 = cr3bp_modes(mu, 5, &g5, w5);
-        CHECK(n4 == n5 && fabs(g - g5) < 1e-15);
+        const Hessian h4 = cr3bp_hessian(mu, (Vec2){l4.x, l4.y});
+        CHECK(fabs(h4.xx - 0.75) < 1e-13 && fabs(h4.yy - 2.25) < 1e-13 &&
+              fabs(h4.xy - 0.75 * sqrt(3.0) * (1 - 2 * mu)) < 1e-13);
+        int n4 = cr3bp_modes(mu, 4, &md), n5 = cr3bp_modes(mu, 5, &md5);
+        CHECK(n4 == n5 && fabs(md.growth - md5.growth) < 1e-15);
         if (mu < cr3bp_routh()) {
-            CHECK(n4 == 2 && g == 0);
+            CHECK(n4 == 2 && md.growth == 0);
             /* omega^4 - omega^2 + (27/4) mu (1-mu) = 0 */
             for (int k = 0; k < 2; k++) {
-                CHECK(fabs(pow(w[k], 4) - w[k] * w[k] + 6.75 * mu * (1 - mu)) < 1e-13);
+                CHECK(fabs(pow(md.omega[k], 4) - md.omega[k] * md.omega[k] + 6.75 * mu * (1 - mu)) <
+                      1e-13);
             }
         } else {
-            CHECK(n4 == 1 && g > 0);
+            CHECK(n4 == 1 && md.growth > 0);
         }
     }
     printf(
@@ -293,8 +299,8 @@ static void test_stability(void)
     double lo = 0.03, hi = 0.05;
     for (int k = 0; k < 60; k++) {
         double mid = (lo + hi) / 2;
-        cr3bp_modes(mid, 4, &g, w);
-        if (g > 0) {
+        cr3bp_modes(mid, 4, &md);
+        if (md.growth > 0) {
             hi = mid;
         } else {
             lo = mid;
@@ -304,24 +310,25 @@ static void test_stability(void)
     CHECK(fabs(27 * cr3bp_routh() * (1 - cr3bp_routh()) - 1) < 1e-14);
     /* Libration periods of the two pure modes against 2 pi / omega. */
     double mu = cr3bp_mu();
-    cr3bp_modes(mu, 4, &g, w);
+    cr3bp_modes(mu, 4, &md);
     for (int k = 0; k < 2; k++) {
-        double period = lab_measured_period(mu, k + 1), theory = 2 * acos(-1.0) / w[k];
+        double period = lab_measured_period(mu, k + 1), theory = 2 * acos(-1.0) / md.omega[k];
         printf("L4 %s period: measured %.9f T, linear theory %.9f T, relative difference %.3g\n",
                k ? "long" : "short", period, theory, fabs(period / theory - 1));
         CHECK(fabs(period / theory - 1) < 1e-5);
     }
     /* Above Routh's limit a 1e-8 L nudge spirals away at the predicted rate;
      * below it the same nudge stays within a few times its size. */
-    double top3, top5, slope5 = lab_measured_drift(0.05, &top5), g5;
+    double top3, top5, slope5 = lab_measured_drift(0.05, &top5);
     lab_measured_drift(0.03, &top3);
-    cr3bp_modes(0.05, 4, &g5, w);
+    cr3bp_modes(0.05, 4, &md5);
     printf("L4 nudge 1e-8 L, 70 T: mu 0.03 stays within %.3g L; mu 0.05 reaches %.3g L, rate %.6f "
            "/T (theory %.6f)\n",
-           top3, top5, slope5, g5);
-    CHECK(top3 < 1e-6 && top5 > 1e-4 && fabs(slope5 / g5 - 1) < 0.05);
-    CHECK(isnan(cr3bp_mode_start(mu, 4, 0, 1e-6).x) && isnan(cr3bp_mode_start(0.05, 4, 2, 1e-6).x));
-    CHECK(cr3bp_modes(0, 4, &g, w) == -1);
+           top3, top5, slope5, md5.growth);
+    CHECK(top3 < 1e-6 && top5 > 1e-4 && fabs(slope5 / md5.growth - 1) < 0.05);
+    CHECK(isnan(cr3bp_mode_start(mu, (ModeRef){4, 0}, 1e-6).x) &&
+          isnan(cr3bp_mode_start(0.05, (ModeRef){4, 2}, 1e-6).x));
+    CHECK(cr3bp_modes(0, 4, &md) == -1);
     /* Hill radius is the small-mu limit of the L1/L2 distance, not an identity. */
     double hill = cbrt(mu / 3), d1 = 1 - mu - cr3bp_lagrange(mu, 1).x,
            d2 = cr3bp_lagrange(mu, 2).x - 1 + mu;
@@ -335,14 +342,15 @@ static void test_stability(void)
 static void test_lab_mu(void)
 {
     lab_set_mu(0.3);
-    lab_reset(0, 0);
+    lab_set_level(0);
+    lab_reset(0);
     CHECK(lab_value(LAB_MU) == 0.3 && lab_value(LAB_GROWTH4) > 0 && isnan(lab_value(LAB_W_LONG)));
-    CHECK(fabs(lab_point(4, 0) - 0.2) < 1e-15 && lab_value(LAB_GROWTH1) > 0);
+    CHECK(fabs(lab_point_x(4) - 0.2) < 1e-15 && lab_value(LAB_GROWTH1) > 0);
     for (int i = 0; i < 40; i++) {
         lab_tick(250);
     }
     CHECK(lab_value(LAB_STATUS) > 0 && lab_value(LAB_ERROR) <= 1e-6);
-    CHECK(hypot(lab_value(LAB_X) - lab_point(4, 0), lab_value(LAB_Y) - lab_point(4, 1)) > 0.1);
+    CHECK(hypot(lab_value(LAB_X) - lab_point_x(4), lab_value(LAB_Y) - lab_point_y(4)) > 0.1);
     Ship s = {lab_value(LAB_X), lab_value(LAB_Y), lab_value(LAB_VX), lab_value(LAB_VY)};
     Ship in = cr3bp_to_inertial(&s, lab_value(LAB_TIME));
     CHECK(lab_value(LAB_IX) == in.x && lab_value(LAB_IY) == in.y);
@@ -351,7 +359,8 @@ static void test_lab_mu(void)
     lab_set_mu(1e-9);
     CHECK(lab_value(LAB_MU) == 0.001);
     lab_set_mu(0);
-    lab_reset(0, 0);
+    lab_set_level(0);
+    lab_reset(0);
     CHECK(lab_value(LAB_MU) == cr3bp_mu() && lab_value(LAB_GROWTH4) == 0);
     CHECK(lab_value(LAB_W_SHORT) > lab_value(LAB_W_LONG) && lab_value(LAB_ROUTH) == cr3bp_routh());
     CHECK(fabs(lab_value(LAB_HILL) - cbrt(cr3bp_mu() / 3)) < 1e-16);
@@ -359,16 +368,17 @@ static void test_lab_mu(void)
         lab_tick(250);
     }
     printf("Lab L4 + 0.01 L, 60 T: ends %.4f L from L4 at mu 1/101 (bounded tadpole)\n",
-           hypot(lab_value(LAB_X) - lab_point(4, 0), lab_value(LAB_Y) - lab_point(4, 1)));
+           hypot(lab_value(LAB_X) - lab_point_x(4), lab_value(LAB_Y) - lab_point_y(4)));
     CHECK(lab_value(LAB_STATUS) == 2 && lab_value(LAB_Y) > 0.5 &&
-          hypot(lab_value(LAB_X) - lab_point(4, 0), lab_value(LAB_Y) - lab_point(4, 1)) < 0.5);
+          hypot(lab_value(LAB_X) - lab_point_x(4), lab_value(LAB_Y) - lab_point_y(4)) < 0.5);
 }
 
 int main(int argc, char **argv)
 {
     if (argc > 1 && strcmp(argv[1], "--samples") == 0) {
         for (int p = 0; p < 2; p++) {
-            lab_reset(p, 0);
+            lab_set_level(0);
+            lab_reset(p);
             for (int i = 0; i < 50; i++) {
                 for (int f = 0; f <= LAB_HILL; f++) {
                     printf("%.17g%c", lab_value(f), f == LAB_HILL ? '\n' : ',');

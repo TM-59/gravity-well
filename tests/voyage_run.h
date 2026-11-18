@@ -34,14 +34,15 @@ static inline void run_voyage(uint64_t key, unsigned effects, int route, int tur
             int option = scene == VS_ROUTE ? route : scene == VS_ILSE ? turned : 0;
             voyage_answer(&v, option);
             if (voyage_heavy(scene)) {
-                voyage_tick(&v, 1,
-                            pilot_command(&p, &v)); /* the first frame after the scene closes */
+                voyage_tick(
+                    &v, (VoyageInput){
+                            1, pilot_command(&p, &v)}); /* the first frame after the scene closes */
                 frames++;
                 out->quiet[scene] = calm && v.loud == loud && v.banner != VB_CLEAR;
             }
             continue;
         }
-        voyage_tick(&v, 1, pilot_command(&p, &v));
+        voyage_tick(&v, (VoyageInput){1, pilot_command(&p, &v)});
         frames++;
     }
     out->completed = v.leg >= V_LEGS;

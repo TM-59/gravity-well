@@ -22,7 +22,9 @@ static void manual_matches_existing_integrator(void)
             orbit_step(&w, &s, t, (Burn){heading, burn}, 0.004);
             t += 0.004;
         }
-        flight_tick(1, turn, burn);
+        flight_steer(turn);
+        flight_throttle(burn);
+        flight_tick(1);
         assert(fabs(flight_value(FLIGHT_X) - s.x) < 1e-12);
         assert(fabs(flight_value(FLIGHT_Y) - s.y) < 1e-12);
         assert(fabs(flight_value(FLIGHT_VX) - s.vx) < 1e-12);
@@ -32,7 +34,9 @@ static void manual_matches_existing_integrator(void)
     flight_reset(0);
     assert(flight_value(FLIGHT_TIME) == 0.0);
     assert(flight_value(FLIGHT_DV) == 0.0);
-    flight_tick(-1, 0, 0);
+    flight_steer(0);
+    flight_throttle(0);
+    flight_tick(-1);
     assert(flight_value(FLIGHT_TIME) == 0.0);
 }
 
@@ -42,7 +46,9 @@ static void transfer_bench(void)
     double r_at_second_burn = 0.0, dv1 = 0.0, low = 100.0, high = 0.0;
     int prev = 0, frames = 0;
     while (flight_value(FLIGHT_STATUS) == 0 && frames++ < 1000) {
-        flight_tick(1, 1, 1); /* Demo must ignore manual inputs. */
+        flight_steer(1);
+        flight_throttle(1);
+        flight_tick(1); /* Demo must ignore manual inputs. */
         int phase = (int)flight_value(FLIGHT_PHASE);
         if (prev == 0 && phase == 1) {
             dv1 = flight_value(FLIGHT_DV);
@@ -64,7 +70,9 @@ static void transfer_bench(void)
            "circular radius span=%.6f, frames=%d\n",
            dv1, r_at_second_burn, flight_value(FLIGHT_RADIUS), high - low, frames);
     double t = flight_value(FLIGHT_TIME);
-    flight_tick(100, 0, 0);
+    flight_steer(0);
+    flight_throttle(0);
+    flight_tick(100);
     assert(flight_value(FLIGHT_TIME) == t);
 }
 

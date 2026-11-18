@@ -133,24 +133,28 @@ size_t cr3bp_contours(double mu, double c, double extent, int grid, ZeroSegment 
     return count;
 }
 
-void cr3bp_hessian(double mu, double x, double y, double *xx, double *xy, double *yy)
+Hessian cr3bp_hessian(double mu, Vec2 at)
 {
+    double x = at.x, y = at.y;
     double dx = x + mu, ex = x - 1.0 + mu, r = hypot(dx, y), q = hypot(ex, y);
     double a = (1.0 - mu) / (r * r * r), b = mu / (q * q * q), a5 = 3.0 * a / (r * r),
            b5 = 3.0 * b / (q * q);
-    *xx = 1.0 - a - b + a5 * dx * dx + b5 * ex * ex;
-    *yy = 1.0 - a - b + (a5 + b5) * y * y;
-    *xy = a5 * dx * y + b5 * ex * y;
+    Hessian h;
+    h.xx = 1.0 - a - b + a5 * dx * dx + b5 * ex * ex;
+    h.yy = 1.0 - a - b + (a5 + b5) * y * y;
+    h.xy = a5 * dx * y + b5 * ex * y;
+    return h;
 }
 
-int cr3bp_modes(double mu, int index, double *growth, double omega[2])
+int cr3bp_modes(double mu, int index, Modes *out)
 {
     Ship p = cr3bp_lagrange(mu, index);
     if (isnan(p.x)) {
         return -1;
     }
-    double xx, xy, yy;
-    cr3bp_hessian(mu, p.x, p.y, &xx, &xy, &yy);
+    const Hessian hs = cr3bp_hessian(mu, (Vec2){p.x, p.y});
+    double xx = hs.xx, xy = hs.xy, yy = hs.yy;
+    double *growth = &out->growth, *omega = out->omega;
     double b = 4.0 - xx - yy, c = xx * yy - xy * xy, disc = b * b - 4.0 * c;
     int n = 0;
     *growth = 0;
@@ -186,15 +190,19 @@ Ship cr3bp_to_rotating(const Ship *i, double t)
     return (Ship){x, y, i->vx * c + i->vy * s + y, -i->vx * s + i->vy * c - x};
 }
 
-Ship cr3bp_mode_start(double mu, int index, int mode, double scale)
+Ship cr3bp_mode_start(double mu, ModeRef ref, double scale)
 {
+    int index = ref.index, mode = ref.mode;
     Ship p = cr3bp_lagrange(mu, index), bad = {NAN, NAN, 0, 0};
-    double g, w[2], xx, xy, yy, xi, eta, vxi, veta;
-    int n = cr3bp_modes(mu, index, &g, w);
+    double xi, eta, vxi, veta;
+    Modes modes;
+    int n = cr3bp_modes(mu, index, &modes);
     if (n < 0) {
         return bad;
     }
-    cr3bp_hessian(mu, p.x, p.y, &xx, &xy, &yy);
+    double g = modes.growth, *w = modes.omega;
+    const Hessian hs = cr3bp_hessian(mu, (Vec2){p.x, p.y});
+    double xx = hs.xx, xy = hs.xy, yy = hs.yy;
     if (mode == 0) {
         if (!(g > 0) || (4 - xx - yy) * (4 - xx - yy) < 4 * (xx * yy - xy * xy)) {
             return bad;

@@ -46,7 +46,8 @@ async function run() {
   let row = 0,
     maxDifference = 0;
   for (let p = 0; p < 2; p++) {
-    wasm._lab_reset(p, 0);
+    wasm._lab_set_level(0);
+    wasm._lab_reset(p);
     for (let i = 0; i < 50; i++) {
       for (let f = 0; f < 21; f++) {
         const a = wasm._lab_value(f),

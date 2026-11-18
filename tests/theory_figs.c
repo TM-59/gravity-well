@@ -355,7 +355,9 @@ static void fig_hohmann(void)
         ya[n] = (float)flight_value(FLIGHT_RADIUS);
         yb[n] = (float)flight_value(FLIGHT_SPEED);
         n++;
-        flight_tick(1, 0, 0);
+        flight_steer(0);
+        flight_throttle(0);
+        flight_tick(1);
         int phase = (int)flight_value(FLIGHT_PHASE);
         if (prev == 0 && phase == 1) {
             dv1 = flight_value(FLIGHT_DV);
@@ -436,7 +438,9 @@ static void fig_thrust(void)
     value("thrust-direction", "direction of that velocity (theory the heading, 0.3 rad)",
           atan2(s.vy, s.vx), 0.3);
     flight_reset(0);
-    flight_tick(30, 0, 1);
+    flight_steer(0);
+    flight_throttle(1);
+    flight_tick(30);
     value("manual-dv-meter",
           "FLIGHT_DV after holding the engine for 30 frames (theory 0.02 x 30 x 0.04)",
           flight_value(FLIGHT_DV), 0.024);
@@ -529,7 +533,7 @@ static void fig_apsides(void)
         if (phase == 2) {
             cmd = voyage_value(&v, VV_MATCH_ERROR) > 1e-9 ? VC_MATCH : VC_COAST;
         }
-        voyage_tick(&v, 1, cmd);
+        voyage_tick(&v, (VoyageInput){1, cmd});
     }
     value("raise-periapsis",
           "periapsis after a prograde burn from ring 1 lifted the apoapsis to 1.8 (an impulse "
@@ -605,7 +609,9 @@ static void val_verlet(void)
           "(theory 0)",
           hypot(b.x - a.x, b.y - a.y), 0.0);
     flight_reset(0);
-    flight_tick(1, 0, 0);
+    flight_steer(0);
+    flight_throttle(0);
+    flight_tick(1);
     value("frame-time", "FLIGHT_TIME after one frame (theory 10 steps x 0.004)",
           flight_value(FLIGHT_TIME), 0.04);
 }
@@ -767,7 +773,7 @@ static void fly(uint64_t key, unsigned effects, int route, int turned, Flown *ou
         }
         (void)a;
         (void)e;
-        voyage_tick(&v, 1, pilot_command(&p, &v));
+        voyage_tick(&v, (VoyageInput){1, pilot_command(&p, &v)});
         frames++;
         if (v.held > 0.0 && held_since < 0.0) {
             held_since = v.time;
@@ -813,7 +819,7 @@ static void fig_clearing(void)
         yb[n] = (float)e;
         yc[n] = 0.04f;
         n++;
-        voyage_tick(&v, 1, pilot_command(&p, &v));
+        voyage_tick(&v, (VoyageInput){1, pilot_command(&p, &v)});
     }
     a = voyage_value(&v, VV_SEMI_MAJOR);
     e = voyage_value(&v, VV_ECC);
@@ -845,7 +851,7 @@ static void fig_fuel(void)
     Voyage v;
     voyage_start(&v, 0u);
     double fuel0 = v.fuel, speed0 = voyage_value(&v, VV_SPEED);
-    voyage_tick(&v, 2, VC_RAISE);
+    voyage_tick(&v, (VoyageInput){2, VC_RAISE});
     value("fuel-per-burn", "fuel spent in two frames of Raise (theory thrust 0.10 x 0.08 T)",
           fuel0 - v.fuel, 0.008);
     value("speed-per-burn",
@@ -928,7 +934,7 @@ static void fig_boil(void)
     v.ship = tangential(2.0, circular_speed(&v.world, 2.0));
     v.target_r = 9.0;
     double fuel0 = v.fuel;
-    voyage_tick(&v, 25, VC_COAST);
+    voyage_tick(&v, (VoyageInput){25, VC_COAST});
     value("boil-per-T", "fuel lost coasting for 1 T on the ring r = 2 (theory 0.016)",
           fuel0 - v.fuel, 0.016);
     Series s[] = {{"voyage_boil", ya, "#1f77b4"}, {"0.016 x 4 / r^2", yb, "#d62728"}};
@@ -951,7 +957,7 @@ static void fig_tow(void)
         ya[n] = (float)v.fuel;
         yb[n] = (float)(v.drift / 20.0);
         n++;
-        voyage_tick(&v, 1, VC_RAISE);
+        voyage_tick(&v, (VoyageInput){1, VC_RAISE});
         if (dry_at < 0.0 && v.tows == 1) {
             dry_at = v.time;
         }
@@ -980,7 +986,7 @@ static void fig_tow(void)
     v.target_r = 2.6;
     v.ship = tangential(2.3, circular_speed(&v.world, 2.3) * 1.05);
     v.fuel = 0.004; /* exactly one frame of burning */
-    voyage_tick(&v, 1, VC_RAISE);
+    voyage_tick(&v, (VoyageInput){1, VC_RAISE});
     value("carry-tows",
           "tows right after that frame: the tank ran dry with nobody on the channel (theory 1)",
           v.tows, 1.0);
@@ -994,16 +1000,16 @@ static void fig_tow(void)
           voyage_value(&v, VV_ECC), 0.0);
     voyage_start(&v, VE_ALL);
     v.ship = tangential(0.34, 1.0);
-    voyage_tick(&v, 1, VC_COAST);
+    voyage_tick(&v, (VoyageInput){1, VC_COAST});
     value("scorch-tow", "tows after one frame inside r = 0.35 (theory 1)", v.tows, 1.0);
     voyage_start(&v, VE_ALL);
     v.ship = tangential(4.6, 0.1);
-    voyage_tick(&v, 1, VC_COAST);
+    voyage_tick(&v, (VoyageInput){1, VC_COAST});
     value("lost-tow", "tows after one frame beyond r = 4.5 (theory 1)", v.tows, 1.0);
     voyage_start(&v, VE_ALL);
     int frames = 0;
     while (v.tows == 0 && frames < 2000) {
-        voyage_tick(&v, 1, VC_COAST);
+        voyage_tick(&v, (VoyageInput){1, VC_COAST});
         frames++;
     }
     value("limit-tow",
@@ -1048,7 +1054,7 @@ static void val_runs(void)
               (voyage_options(VS_DOCK) == 2) + (voyage_options(VS_QUAY) == 2),
           2.0);
     voyage_answer(&v, 0);
-    voyage_tick(&v, 1, VC_RAISE);
+    voyage_tick(&v, (VoyageInput){1, VC_RAISE});
     value("cue-cut",
           "voyage_cue while raising with the apoapsis still under the ring (theory 0, nothing yet)",
           voyage_cue(&v), 0.0);

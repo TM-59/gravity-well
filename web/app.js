@@ -669,12 +669,15 @@ function frame(now) {
       if (voyage) {
         const command = pressed('raise') ? 1 : pressed('lower') ? 2 : pressed('match') ? 3 : 0;
         const tows = state.tows;
-        engine._vw_tick(1, command);
+        engine._vw_command(command);
+        engine._vw_tick(1);
         state = read();
         if (state.tows !== tows) trail.length = 0;
       } else {
         const turn = Number(pressed('left')) - Number(pressed('right'));
-        engine._flight_tick(1, turn, Number(pressed('burn')));
+        engine._flight_steer(turn);
+        engine._flight_throttle(Number(pressed('burn')));
+        engine._flight_tick(1);
         state = read();
       }
       trail.push([state.x, state.y]);

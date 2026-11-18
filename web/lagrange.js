@@ -39,14 +39,20 @@ let engine,
   mask = [];
 const fields = () => Object.fromEntries(names.map((name, i) => [name, engine._lab_value(i)]));
 function reset(start = false) {
-  engine._lab_reset(preset, level);
+  engine._lab_set_level(level);
+  engine._lab_reset(preset);
   state = fields();
   paused = !start;
   elapsed = 0;
   trail = [[state.x, state.y, state.ix, state.iy]];
   history = [[0, 0]];
   segments = Array.from({ length: state.segments }, (_, i) =>
-    Array.from({ length: 4 }, (_, k) => engine._lab_segment(i, k)),
+    [
+      engine._lab_segment_x1(i),
+      engine._lab_segment_y1(i),
+      engine._lab_segment_x2(i),
+      engine._lab_segment_y2(i),
+    ],
   );
   mask = Array.from(
     { length: 80 * 80 },
@@ -59,7 +65,7 @@ function reset(start = false) {
   $('points').replaceChildren();
   for (let i = 1; i <= 5; i++) {
     const row = document.createElement('tr');
-    for (const text of [`L${i}`, ...[0, 1, 2].map((k) => engine._lab_point(i, k).toFixed(6))]) {
+    for (const text of [`L${i}`, ...[engine._lab_point_x(i), engine._lab_point_y(i), engine._lab_point_c(i)].map((v) => v.toFixed(6))]) {
       const cell = document.createElement('td');
       cell.textContent = text;
       row.append(cell);
@@ -176,7 +182,7 @@ function draw() {
   });
   ctx.stroke();
   for (let i = 1; i <= 5; i++) {
-    const [x, y] = point(engine._lab_point(i, 0), engine._lab_point(i, 1));
+    const [x, y] = point(engine._lab_point_x(i), engine._lab_point_y(i));
     ctx.strokeStyle = '#eee9df';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -292,8 +298,8 @@ Object.defineProperty(window, 'lagrangeView', {
             inertial,
             levelIndex: level,
             points: Array.from({ length: 5 }, (_, i) => [
-              engine._lab_point(i + 1, 0),
-              engine._lab_point(i + 1, 1),
+              engine._lab_point_x(i + 1),
+              engine._lab_point_y(i + 1),
             ]),
             trailLength: trail.length,
           }

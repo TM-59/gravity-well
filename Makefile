@@ -70,11 +70,11 @@ web: dist/orbit.js dist/cr3bp.js
 
 dist/orbit.js: src/orbit.c src/orbit.h src/flight.c src/flight.h src/voyage.c src/voyage.h src/voyage_web.c
 	mkdir -p dist
-	$(EMCC) -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror src/orbit.c src/flight.c src/voyage.c src/voyage_web.c --no-entry -sMODULARIZE -sEXPORT_NAME=createOrbit -sENVIRONMENT=web -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_flight_reset","_flight_tick","_flight_value","_vw_reset","_vw_tick","_vw_answer","_vw_value"]' -o $@
+	$(EMCC) -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror src/orbit.c src/flight.c src/voyage.c src/voyage_web.c --no-entry -sMODULARIZE -sEXPORT_NAME=createOrbit -sENVIRONMENT=web -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_flight_reset","_flight_steer","_flight_throttle","_flight_tick","_flight_value","_vw_reset","_vw_command","_vw_tick","_vw_answer","_vw_value"]' -o $@
 
 dist/cr3bp.js: $(CR3BP) src/cr3bp.h src/lagrange.h src/orbit.h
 	mkdir -p dist
-	$(EMCC) $(CFLAGS) $(CR3BP) --no-entry -sMODULARIZE -sEXPORT_NAME=createLagrange -sENVIRONMENT=web,node -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_lab_reset","_lab_set_mu","_lab_tick","_lab_value","_lab_point","_lab_segment","_lab_allowed"]' -o $@
+	$(EMCC) $(CFLAGS) $(CR3BP) --no-entry -sMODULARIZE -sEXPORT_NAME=createLagrange -sENVIRONMENT=web,node -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_lab_set_level","_lab_reset","_lab_set_mu","_lab_tick","_lab_value","_lab_point_x","_lab_point_y","_lab_point_c","_lab_segment_x1","_lab_segment_y1","_lab_segment_x2","_lab_segment_y2","_lab_allowed"]' -o $@
 
 play: web
 	$(PYTHON) -m http.server 4216 --bind localhost --directory dist

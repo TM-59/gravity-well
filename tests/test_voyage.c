@@ -29,7 +29,7 @@ static int drive(Voyage *v, Pilot *p, int target, int route, int turned)
             continue;
         }
         double t = v->time;
-        voyage_tick(v, 1, pilot_command(p, v));
+        voyage_tick(v, (VoyageInput){1, pilot_command(p, v)});
         assert(fabs(v->time - t - 0.04) <
                1e-9); /* every frame is 0.04 T of flight: no flat waits */
         frames++;
@@ -201,8 +201,8 @@ int main(void)
         assert(close_to(a.fuel, 0.30) && close_to(b.fuel, 0.30));
         assert(voyage_answer(&a, 0) == 0 && voyage_answer(&b, 0) == 0);
         assert(close_to(a.fuel, 0.40) && close_to(b.fuel, 0.30) && a.count == 1 && b.count == 1);
-        voyage_tick(&a, 7, VC_COAST);
-        voyage_tick(&b, 7, VC_COAST);
+        voyage_tick(&a, (VoyageInput){7, VC_COAST});
+        voyage_tick(&b, (VoyageInput){7, VC_COAST});
         assert(fabs(voyage_wobble(&b)) > 1e-3 &&
                close_to(voyage_wobble(&a) / voyage_wobble(&b), 0.10));
         assert(a.target_r == 1.5 && voyage_value(&a, VV_FROM) == 1.0);
@@ -249,7 +249,7 @@ int main(void)
                b.scene == VS_FLARE);
         assert(voyage_heavy(VS_FLARE) && a.banner == VB_NONE && a.banner_left == 0.0);
         assert(voyage_answer(&a, 0) == 0);
-        voyage_tick(&a, 1, pilot_command(&p, &a));
+        voyage_tick(&a, (VoyageInput){1, pilot_command(&p, &a)});
         assert(a.loud == loud && a.banner != VB_CLEAR);
         puts("[mech] beacon: +0.22 fuel from the cache");
         puts("[quiet] flare: shown with no cleared banner, before or after");
@@ -305,7 +305,7 @@ int main(void)
         assert(a.leg == 3 && b.leg == 3);
         double r2 = a.ship.x * a.ship.x + a.ship.y * a.ship.y, f = a.fuel, t = a.time;
         assert(close_to(voyage_boil(&a), 0.016 * 4.0 / r2) && voyage_boil(&b) == 0.0);
-        voyage_tick(&a, 1, VC_COAST);
+        voyage_tick(&a, (VoyageInput){1, VC_COAST});
         assert(f - a.fuel > 0.0 && fabs((f - a.fuel) - 0.016 * 4.0 / r2 * (a.time - t)) < 1e-4);
         b.time = a.time;
         assert(fabs(voyage_wobble(&a)) > fabs(voyage_wobble(&b)));
@@ -328,7 +328,7 @@ int main(void)
         assert(voyage_answer(&a, turned) == 0);
         assert(a.turned == turned && close_to(a.target_r, turned ? 2.2 : 1.6));
         assert(close_to(voyage_hold_need(&a), turned ? 0.0 : 11.0));
-        voyage_tick(&a, 1, pilot_command(&p, &a));
+        voyage_tick(&a, (VoyageInput){1, pilot_command(&p, &a)});
         assert(a.loud == loud && a.banner != VB_CLEAR);
         if (turned == 0) {
             /* Put the tug on the pod's ring with a slightly eccentric orbit: the first grapple
@@ -338,7 +338,7 @@ int main(void)
             g.ship = (Ship){r, 0.0, 0.0, s};
             g.fuel = 0.1;
             int tows = g.tows;
-            voyage_tick(&g, 1, VC_COAST);
+            voyage_tick(&g, (VoyageInput){1, VC_COAST});
             assert(g.tows == tows + 1 && g.tows_leg[3] == 1 && g.missed && close_to(g.drift, 3.0) &&
                    g.banner == VB_MISS);
             assert(g.held == 0.0 && g.fuel < 0.1);
@@ -347,21 +347,21 @@ int main(void)
             double f = g.fuel;
             while (g.held == 0.0) {
                 f = g.fuel;
-                voyage_tick(&g, 1, VC_COAST);
+                voyage_tick(&g, (VoyageInput){1, VC_COAST});
             }
             assert(g.drift == 0.0 && g.fuel - f > 0.32 - 0.002 && g.fuel - f < 0.32 &&
                    voyage_boil(&g) == 0.0);
             double t = g.time;
             while (g.scene == VS_NONE) {
-                voyage_tick(&g, 1, VC_COAST);
+                voyage_tick(&g, (VoyageInput){1, VC_COAST});
             }
             assert(g.scene == VS_SILENCE && g.time - t >= 11.0 - 0.04 - 1e-9);
             /* A round orbit with the engine on: the pod waits for the engine to go quiet. */
             Voyage h = a;
             h.ship = (Ship){r, 0.0, 0.0, sqrt(1.0 / r)};
-            voyage_tick(&h, 1, VC_MATCH);
+            voyage_tick(&h, (VoyageInput){1, VC_MATCH});
             assert(h.held == 0.0 && h.tows == a.tows);
-            voyage_tick(&h, 1, VC_COAST);
+            voyage_tick(&h, (VoyageInput){1, VC_COAST});
             assert(h.held > 0.0 && h.tows == a.tows && !h.missed);
             puts("[quiet] ilse: shown with no cleared banner");
         }
@@ -385,18 +385,18 @@ int main(void)
         int loud = a.loud;
         assert(voyage_answer(&a, 0) == 0 && voyage_answer(&b, 0) == 0);
         assert(a.count == 0 && b.count == 1 && a.leg == 4);
-        voyage_tick(&a, 1, VC_COAST);
+        voyage_tick(&a, (VoyageInput){1, VC_COAST});
         assert(a.loud == loud && a.banner != VB_CLEAR);
         puts("[quiet] silence: shown with no cleared banner");
         a.fuel = b.fuel = 0.0005;
         double from = a.from_r;
-        voyage_tick(&a, 1, VC_RAISE);
-        voyage_tick(&b, 1, VC_RAISE);
+        voyage_tick(&a, (VoyageInput){1, VC_RAISE});
+        voyage_tick(&b, (VoyageInput){1, VC_RAISE});
         assert(a.tows_leg[4] == 1 && close_to(hypot(a.ship.x, a.ship.y), from) &&
                close_to(a.fuel, 0.20) && a.drift == 0.0);
         assert(b.tows_leg[4] == 1 && close_to(b.drift, 3.0) && b.fuel == 0.0);
         while (b.drift > 0.0) {
-            voyage_tick(&b, 1, VC_RAISE);
+            voyage_tick(&b, (VoyageInput){1, VC_RAISE});
         }
         assert(b.fuel > 0.14 && b.fuel <= 0.15);
         puts("[mech] silence: a dry tank now means Lamp Quay's tug drags you back to the start of "
@@ -420,7 +420,7 @@ int main(void)
         drive(&a, &p, VS_ROUTE, 0, 0);
         assert(a.banner == VB_CLEAR && a.loud == 1);
         assert(voyage_answer(&a, 2) == 1 && voyage_answer(&a, -1) == 1);
-        voyage_tick(&a, -1, VC_RAISE);
+        voyage_tick(&a, (VoyageInput){-1, VC_RAISE});
         assert(a.scene == VS_ROUTE);
     }
     puts("voyage tests passed");

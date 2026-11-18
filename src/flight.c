@@ -6,7 +6,7 @@
 static World world;
 static Ship ship;
 static double time_now, heading, delta_v, burn1, burn2, end_time;
-static int demo, phase, status;
+static int demo, phase, status, turn, burn;
 
 void flight_reset(int mode)
 {
@@ -33,7 +33,11 @@ static void impulse(double target_speed)
     phase++;
 }
 
-void flight_tick(int frames, int turn, int burn)
+void flight_steer(int input) { turn = (input > 0) - (input < 0); }
+
+void flight_throttle(int input) { burn = input > 0; }
+
+void flight_tick(int frames)
 {
     if (frames < 0) {
         return;
@@ -41,8 +45,6 @@ void flight_tick(int frames, int turn, int burn)
     if (frames > 250) {
         frames = 250;
     }
-    turn = (turn > 0) - (turn < 0);
-    burn = burn > 0;
     for (int frame = 0; frame < frames && !status; frame++) {
         if (!demo) {
             heading = remainder(heading + turn * 0.08, 2.0 * PI);

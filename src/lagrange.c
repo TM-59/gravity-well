@@ -9,7 +9,7 @@
 #define PI 3.14159265358979323846
 static Ship ship;
 static double time_now, c0, worst, level_c;
-static int preset_now, status;
+static int preset_now, status, level_now;
 static double mu_now = 1.0 / 101.0;
 static size_t segments;
 static ZeroSegment contour[CAP];
@@ -19,8 +19,11 @@ void lab_set_mu(double mu)
     mu_now = !(mu > 0) ? cr3bp_mu() : mu < 0.001 ? 0.001 : mu > 0.5 ? 0.5 : mu;
 }
 
-void lab_reset(int preset, int level)
+void lab_set_level(int level) { level_now = level; }
+
+void lab_reset(int preset)
 {
+    int level = level_now;
     preset_now = preset == 1;
     ship = cr3bp_lagrange(mu_now, preset_now ? 1 : 4);
     if (preset_now) {
@@ -111,58 +114,69 @@ double lab_value(int field)
     case LAB_GROWTH4:
     case LAB_W_SHORT:
     case LAB_W_LONG: {
-        double g = 0, w[2] = {NAN, NAN};
-        int n = cr3bp_modes(mu_now, field == LAB_GROWTH1 ? 1 : 4, &g, w);
+        Modes m = {.growth = 0, .omega = {NAN, NAN}};
+        int n = cr3bp_modes(mu_now, field == LAB_GROWTH1 ? 1 : 4, &m);
         if (field == LAB_W_SHORT) {
-            return n > 0 ? w[0] : NAN;
+            return n > 0 ? m.omega[0] : NAN;
         }
         if (field == LAB_W_LONG) {
-            return n > 1 ? w[1] : NAN;
+            return n > 1 ? m.omega[1] : NAN;
         }
-        return g;
+        return m.growth;
     }
     default:
         return NAN;
     }
 }
 
-double lab_point(int index, int field)
+double lab_point_x(int index) { return cr3bp_lagrange(mu_now, index).x; }
+
+double lab_point_y(int index) { return cr3bp_lagrange(mu_now, index).y; }
+
+double lab_point_c(int index)
 {
     Ship p = cr3bp_lagrange(mu_now, index);
-    if (field == 0) {
-        return p.x;
-    }
-    if (field == 1) {
-        return p.y;
-    }
     return cr3bp_jacobi(mu_now, &p);
 }
 
-double lab_segment(int index, int field)
+/* Segment `index` of the contour, or NULL when there is none. */
+static const ZeroSegment *segment_at(int index)
 {
     if (index < 0 || (size_t)index >= segments || index >= CAP) {
-        return NAN;
+        return NULL;
     }
-    ZeroSegment s = contour[index];
-    switch (field) {
-    case 0:
-        return s.x1;
-    case 1:
-        return s.y1;
-    case 2:
-        return s.x2;
-    case 3:
-        return s.y2;
-    default:
-        return NAN;
-    }
+    return &contour[index];
+}
+
+double lab_segment_x1(int index)
+{
+    const ZeroSegment *s = segment_at(index);
+    return s ? s->x1 : NAN;
+}
+
+double lab_segment_y1(int index)
+{
+    const ZeroSegment *s = segment_at(index);
+    return s ? s->y1 : NAN;
+}
+
+double lab_segment_x2(int index)
+{
+    const ZeroSegment *s = segment_at(index);
+    return s ? s->x2 : NAN;
+}
+
+double lab_segment_y2(int index)
+{
+    const ZeroSegment *s = segment_at(index);
+    return s ? s->y2 : NAN;
 }
 
 double lab_allowed(double x, double y) { return 2 * cr3bp_potential(mu_now, x, y) - level_c; }
 
 double lab_measured_growth(double mu, int index)
 {
-    Ship p = cr3bp_lagrange(mu, index), s = cr3bp_mode_start(mu, index, 0, 1e-8);
+    Ship p = cr3bp_lagrange(mu, index), s = cr3bp_mode_start(mu, (ModeRef){index, 0}, 1e-8);
     for (int k = 0; k < 1200; k++) {
         cr3bp_step(mu, &s, DT);
     }
@@ -171,7 +185,7 @@ double lab_measured_growth(double mu, int index)
 
 double lab_measured_period(double mu, int mode)
 {
-    Ship p = cr3bp_lagrange(mu, 4), s = cr3bp_mode_start(mu, 4, mode, 1e-6);
+    Ship p = cr3bp_lagrange(mu, 4), s = cr3bp_mode_start(mu, (ModeRef){4, mode}, 1e-6);
     double first = NAN, prev = s.y - p.y;
     for (int k = 1; k <= 40000; k++) {
         cr3bp_step(mu, &s, DT);
@@ -227,7 +241,8 @@ static void panel_open(FILE *f, double ox, double oy, double size, const char *c
 static int stability_output(const char *dir)
 {
     char path[1024];
-    double mu = cr3bp_mu(), g, w[2];
+    double mu = cr3bp_mu();
+    Modes m;
     FILE *f;
     /* 1. table: linear theory against integration */
     (void)snprintf(path, sizeof path, "%s/stability.csv", dir);
@@ -237,12 +252,13 @@ static int stability_output(const char *dir)
     }
     (void)fputs("quantity,theory,measured,relative_difference\n", f);
     for (int i = 1; i <= 3; i++) {
-        cr3bp_modes(mu, i, &g, w);
-        double m = lab_measured_growth(mu, i);
-        (void)fprintf(f, "L%d growth rate [1/T] (mu=1/101),%.9f,%.9f,%.2e\n", i, g, m,
-                      fabs(m / g - 1));
+        (void)cr3bp_modes(mu, i, &m);
+        double g = m.growth, measured = lab_measured_growth(mu, i);
+        (void)fprintf(f, "L%d growth rate [1/T] (mu=1/101),%.9f,%.9f,%.2e\n", i, g, measured,
+                      fabs(measured / g - 1));
     }
-    cr3bp_modes(mu, 4, &g, w);
+    (void)cr3bp_modes(mu, 4, &m);
+    const double *w = m.omega;
     double period[2];
     for (int k = 0; k < 2; k++) {
         period[k] = lab_measured_period(mu, k + 1);
@@ -250,8 +266,10 @@ static int stability_output(const char *dir)
                       2 * PI / w[k], period[k], fabs(period[k] * w[k] / (2 * PI) - 1));
     }
     double top3, top5, slope5 = lab_measured_drift(0.05, &top5),
-                       slope3 = lab_measured_drift(0.03, &top3), g5, w5[2];
-    cr3bp_modes(0.05, 4, &g5, w5);
+                       slope3 = lab_measured_drift(0.03, &top3);
+    Modes above;
+    (void)cr3bp_modes(0.05, 4, &above);
+    double g5 = above.growth;
     (void)fprintf(f, "L4 growth rate [1/T] (mu=0.05 above Routh),%.9f,%.9f,%.2e\n", g5, slope5,
                   fabs(slope5 / g5 - 1));
     (void)fprintf(
@@ -274,12 +292,13 @@ static int stability_output(const char *dir)
     enum { M = 240, N = 1001 };
     static float xs[N], a[N], b[N], c[N];
     for (int i = 0; i < M; i++) {
-        double m = 0.0005 + i * 0.00025, gg, ww[2];
-        int n = cr3bp_modes(m, 4, &gg, ww);
-        xs[i] = (float)m;
-        a[i] = (float)ww[0];
-        b[i] = (float)(n > 1 ? ww[1] : ww[0]);
-        c[i] = (float)gg;
+        double frac = 0.0005 + i * 0.00025;
+        Modes mm;
+        int n = cr3bp_modes(frac, 4, &mm);
+        xs[i] = (float)frac;
+        a[i] = (float)mm.omega[0];
+        b[i] = (float)(n > 1 ? mm.omega[1] : mm.omega[0]);
+        c[i] = (float)mm.growth;
     }
     Series modes[3] = {{"short-period omega", a, "#136d88"},
                        {"long-period omega", b, "#b77d17"},
@@ -294,7 +313,7 @@ static int stability_output(const char *dir)
 
     /* 3. the two pure L4 modes in time */
     for (int k = 0; k < 2; k++) {
-        Ship p = cr3bp_lagrange(mu, 4), s = cr3bp_mode_start(mu, 4, k + 1, 1e-6);
+        Ship p = cr3bp_lagrange(mu, 4), s = cr3bp_mode_start(mu, (ModeRef){4, k + 1}, 1e-6);
         float *dst = k ? b : a;
         for (int i = 0; i < N; i++) {
             xs[i] = (float)(i * 20 * DT);
@@ -342,7 +361,7 @@ static int stability_output(const char *dir)
     enum { K = 301 };
     static float l[3][K];
     for (int i = 1; i <= 3; i++) {
-        Ship p = cr3bp_lagrange(mu, i), s = cr3bp_mode_start(mu, i, 0, 1e-8);
+        Ship p = cr3bp_lagrange(mu, i), s = cr3bp_mode_start(mu, (ModeRef){i, 0}, 1e-8);
         for (int j = 0; j < K; j++) {
             xs[j] = (float)(j * 4 * DT);
             l[i - 1][j] = (float)log10(hypot(s.x - p.x, s.y - p.y));
@@ -381,7 +400,8 @@ static int stability_output(const char *dir)
 
     /* 6. one trajectory, two frames */
     lab_set_mu(0);
-    lab_reset(0, 0);
+    lab_set_level(0);
+    lab_reset(0);
     enum { P = 1501 };
     static double rx[P], ry[P], ix[P], iy[P];
     double lo[2] = {1e9, 1e9}, hi[2] = {-1e9, -1e9};
@@ -473,7 +493,8 @@ int lagrange_output(const char *dir)
     if (fclose(f)) {
         return 1;
     }
-    lab_reset(0, 0);
+    lab_set_level(0);
+    lab_reset(0);
     enum { N = 1501 };
     static float tt[N], drift[N];
     (void)snprintf(path, sizeof path, "%s/jacobi.csv", dir);
@@ -518,7 +539,8 @@ int lagrange_output(const char *dir)
         "y=\"28\">CR3BP: barycentric rotating frame; primary separation = total GM = n = 1</text>",
         f);
     for (int pane = 0; pane < 2; pane++) {
-        lab_reset(0, pane + 1);
+        lab_set_level(pane + 1);
+        lab_reset(0);
         double ox = 250 + 500 * pane, oy = 285, sc = 125;
         (void)fprintf(f, "<text x=\"%d\" y=\"58\">%s: C = %.9f</text>", 30 + 500 * pane,
                       pane ? "Open L1 neck" : "Closed L1 neck", level_c);

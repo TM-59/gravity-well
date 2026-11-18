@@ -124,9 +124,13 @@ enum VoyageValue {
 };
 
 void voyage_init(Voyage *v, unsigned effects);
+typedef struct {
+    int frames;
+    int command;
+} VoyageInput;
 /* frames of ten 0.004 T steps, under one command (VC_*). Does nothing while a scene is open or
  * after the end. */
-void voyage_tick(Voyage *v, int frames, int command);
+void voyage_tick(Voyage *v, VoyageInput in);
 /* Close the open scene. Choice scenes take option 0 or 1; others take 0. Returns 0 when accepted.
  */
 int voyage_answer(Voyage *v, int option);
