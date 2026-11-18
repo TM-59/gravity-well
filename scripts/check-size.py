@@ -1,4 +1,5 @@
 """Local initial-download gate; no third-party packages. Python 3.14."""
+
 from pathlib import Path
 
 files = sorted(p for p in Path("dist").rglob("*") if p.is_file())

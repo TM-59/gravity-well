@@ -8,10 +8,7 @@ World world_default(void)
     return w;
 }
 
-double moon_omega(const World *w)
-{
-    return sqrt(w->star_gm / (w->moon_r * w->moon_r * w->moon_r));
-}
+double moon_omega(const World *w) { return sqrt(w->star_gm / (w->moon_r * w->moon_r * w->moon_r)); }
 
 void moon_position(const World *w, double t, double *x, double *y)
 {
@@ -51,15 +48,9 @@ double ship_energy(const World *w, const Ship *s)
     return 0.5 * (s->vx * s->vx + s->vy * s->vy) - w->star_gm / sqrt(s->x * s->x + s->y * s->y);
 }
 
-double ship_ang_momentum(const Ship *s)
-{
-    return s->x * s->vy - s->y * s->vx;
-}
+double ship_ang_momentum(const Ship *s) { return s->x * s->vy - s->y * s->vx; }
 
-double circular_speed(const World *w, double r)
-{
-    return sqrt(w->star_gm / r);
-}
+double circular_speed(const World *w, double r) { return sqrt(w->star_gm / r); }
 
 double circular_period(const World *w, double r)
 {

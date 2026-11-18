@@ -1,11 +1,30 @@
 #ifndef LAGRANGE_H
 #define LAGRANGE_H
 
-enum LabValue { LAB_X,LAB_Y,LAB_VX,LAB_VY,LAB_TIME,LAB_C,LAB_C0,LAB_ERROR,
-                LAB_MU,LAB_LEVEL,LAB_SEGMENTS,LAB_STATUS,LAB_PRESET,
-                /* inertial-frame position of the traveller; linear theory at the lab's mu */
-                LAB_IX,LAB_IY,LAB_GROWTH1,LAB_GROWTH4,LAB_W_SHORT,LAB_W_LONG,
-                LAB_ROUTH,LAB_HILL };
+enum LabValue {
+    LAB_X,
+    LAB_Y,
+    LAB_VX,
+    LAB_VY,
+    LAB_TIME,
+    LAB_C,
+    LAB_C0,
+    LAB_ERROR,
+    LAB_MU,
+    LAB_LEVEL,
+    LAB_SEGMENTS,
+    LAB_STATUS,
+    LAB_PRESET,
+    /* inertial-frame position of the traveller; linear theory at the lab's mu */
+    LAB_IX,
+    LAB_IY,
+    LAB_GROWTH1,
+    LAB_GROWTH4,
+    LAB_W_SHORT,
+    LAB_W_LONG,
+    LAB_ROUTH,
+    LAB_HILL
+};
 /* Secondary mass fraction for the next lab_reset, clamped to [0.001, 0.5];
  * mu <= 0 restores the default 1/101. */
 void lab_set_mu(double mu);
@@ -15,9 +34,9 @@ void lab_set_mu(double mu);
 void lab_reset(int preset, int level);
 void lab_tick(int frames);
 double lab_value(int field);
-double lab_point(int index, int field); /* index 1..5, x/y/C */
+double lab_point(int index, int field);   /* index 1..5, x/y/C */
 double lab_segment(int index, int field); /* x1/y1/x2/y2 */
-double lab_allowed(double x, double y); /* 2 Omega - display C */
+double lab_allowed(double x, double y);   /* 2 Omega - display C */
 /* Measurements by integration (RK4, dt 0.0025), to set against cr3bp_modes:
  * e-folding rate of the pure growing mode at a collinear point over 3 T; */
 double lab_measured_growth(double mu, int index);

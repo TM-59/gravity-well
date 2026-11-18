@@ -9,8 +9,8 @@ typedef struct {
 
 typedef struct {
     double star_gm;
-    double moon_gm, moon_r;   /* moon orbit radius */
-    double thrust;            /* ship acceleration when the engine burns */
+    double moon_gm, moon_r; /* moon orbit radius */
+    double thrust;          /* ship acceleration when the engine burns */
 } World;
 
 World world_default(void);
@@ -20,7 +20,7 @@ void moon_position(const World *w, double t, double *x, double *y);
 void gravity(const World *w, double t, double x, double y, double *ax, double *ay);
 /* Velocity Verlet step (symplectic); burn in 0..1 along heading [rad]. */
 void orbit_step(const World *w, Ship *s, double t, double heading, double burn, double dt);
-double ship_energy(const World *w, const Ship *s);          /* star only */
+double ship_energy(const World *w, const Ship *s); /* star only */
 double ship_ang_momentum(const Ship *s);
 double circular_speed(const World *w, double r);
 double circular_period(const World *w, double r);
