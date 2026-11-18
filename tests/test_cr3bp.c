@@ -94,8 +94,9 @@ static void test_jacobi_and_order(void)
     Ship initial = {0.5, 0.3, -0.2, 0.3}, end[3];
     for (int i = 0; i < 3; i++) {
         end[i] = initial;
-        for (int k = 0; k < 100 * (1 << i); k++)
+        for (int k = 0; k < 100 * (1 << i); k++) {
             cr3bp_step(mu, &end[i], 0.01 / (1 << i));
+        }
     }
     double e1 = hypot(end[0].x - end[2].x, end[0].y - end[2].y);
     double e2 = hypot(end[1].x - end[2].x, end[1].y - end[2].y);
@@ -153,29 +154,33 @@ static void test_lab(void)
     CHECK(lab_value(LAB_TIME) > 0 && lab_value(LAB_X) != x);
     lab_reset(0, 0);
     CHECK(lab_value(LAB_X) == x && lab_value(LAB_ERROR) == 0);
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 6; i++) {
         lab_tick(250);
+    }
     CHECK(lab_value(LAB_TIME) > 59.99 && lab_value(LAB_ERROR) < 1e-6);
     lab_reset(1, 0);
     double start = lab_value(LAB_X), l1 = lab_point(1, 0);
     int passed = 0;
     for (int i = 0; i < 100; i++) {
         lab_tick(1);
-        if (lab_value(LAB_X) > l1)
+        if (lab_value(LAB_X) > l1) {
             passed = 1;
+        }
     }
     CHECK(start < l1 && passed);
     CHECK(lab_value(LAB_ERROR) < 1e-6);
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 100; i++) {
         lab_tick(250);
+    }
     CHECK(lab_value(LAB_STATUS) > 0 && lab_value(LAB_ERROR) <= 1e-6);
     lab_reset(0, 1);
     CHECK(lab_allowed(lab_point(1, 0), 0) < 0);
     lab_reset(0, 2);
     CHECK(lab_allowed(lab_point(1, 0), 0) > 0);
     CHECK(isfinite(lab_segment(0, 0)) && isnan(lab_segment(-1, 0)));
-    for (int i = 1; i <= 5; i++)
+    for (int i = 1; i <= 5; i++) {
         CHECK(isfinite(lab_point(i, 2)));
+    }
 }
 
 static void test_frames(void)
@@ -207,12 +212,14 @@ static void test_frames(void)
     for (int k = 0; k < 16000; k++) {
         double t = k * h, z[4] = {in.x, in.y, in.vx, in.vy}, acc[4] = {0, 0, 0, 0}, y[4], d[4];
         static const double node[4] = {0, 0.5, 0.5, 1}, weight[4] = {1, 2, 2, 1};
-        for (int j = 0; j < 4; j++)
+        for (int j = 0; j < 4; j++) {
             d[j] = 0;
+        }
         for (int stage = 0; stage < 4; stage++) {
             double tt = t + node[stage] * h, c = cos(tt), sn = sin(tt);
-            for (int j = 0; j < 4; j++)
+            for (int j = 0; j < 4; j++) {
                 y[j] = z[j] + node[stage] * h * d[j];
+            }
             double ax = y[0] + mu * c, ay = y[1] + mu * sn, bx = y[0] - (1 - mu) * c,
                    by = y[1] - (1 - mu) * sn;
             double ra = pow(hypot(ax, ay), 3), rb = pow(hypot(bx, by), 3);
@@ -220,8 +227,9 @@ static void test_frames(void)
             d[1] = y[3];
             d[2] = -(1 - mu) * ax / ra - mu * bx / rb;
             d[3] = -(1 - mu) * ay / ra - mu * by / rb;
-            for (int j = 0; j < 4; j++)
+            for (int j = 0; j < 4; j++) {
                 acc[j] += weight[stage] * d[j];
+            }
         }
         in = (Ship){z[0] + h * acc[0] / 6, z[1] + h * acc[1] / 6, z[2] + h * acc[2] / 6,
                     z[3] + h * acc[3] / 6};
@@ -270,10 +278,12 @@ static void test_stability(void)
         if (mu < cr3bp_routh()) {
             CHECK(n4 == 2 && g == 0);
             /* omega^4 - omega^2 + (27/4) mu (1-mu) = 0 */
-            for (int k = 0; k < 2; k++)
+            for (int k = 0; k < 2; k++) {
                 CHECK(fabs(pow(w[k], 4) - w[k] * w[k] + 6.75 * mu * (1 - mu)) < 1e-13);
-        } else
+            }
+        } else {
             CHECK(n4 == 1 && g > 0);
+        }
     }
     printf(
         "L1-L3 growth rate, 15 points: integration vs eigenvalue, max relative difference %.3g\n",
@@ -283,10 +293,11 @@ static void test_stability(void)
     for (int k = 0; k < 60; k++) {
         double mid = (lo + hi) / 2;
         cr3bp_modes(mid, 4, &g, w);
-        if (g > 0)
+        if (g > 0) {
             hi = mid;
-        else
+        } else {
             lo = mid;
+        }
     }
     CHECK(fabs(hi - cr3bp_routh()) < 1e-12 && fabs(cr3bp_routh() - 0.0385208965) < 1e-10);
     CHECK(fabs(27 * cr3bp_routh() * (1 - cr3bp_routh()) - 1) < 1e-14);
@@ -326,8 +337,9 @@ static void test_lab_mu(void)
     lab_reset(0, 0);
     CHECK(lab_value(LAB_MU) == 0.3 && lab_value(LAB_GROWTH4) > 0 && isnan(lab_value(LAB_W_LONG)));
     CHECK(fabs(lab_point(4, 0) - 0.2) < 1e-15 && lab_value(LAB_GROWTH1) > 0);
-    for (int i = 0; i < 40; i++)
+    for (int i = 0; i < 40; i++) {
         lab_tick(250);
+    }
     CHECK(lab_value(LAB_STATUS) > 0 && lab_value(LAB_ERROR) <= 1e-6);
     CHECK(hypot(lab_value(LAB_X) - lab_point(4, 0), lab_value(LAB_Y) - lab_point(4, 1)) > 0.1);
     Ship s = {lab_value(LAB_X), lab_value(LAB_Y), lab_value(LAB_VX), lab_value(LAB_VY)};
@@ -342,8 +354,9 @@ static void test_lab_mu(void)
     CHECK(lab_value(LAB_MU) == cr3bp_mu() && lab_value(LAB_GROWTH4) == 0);
     CHECK(lab_value(LAB_W_SHORT) > lab_value(LAB_W_LONG) && lab_value(LAB_ROUTH) == cr3bp_routh());
     CHECK(fabs(lab_value(LAB_HILL) - cbrt(cr3bp_mu() / 3)) < 1e-16);
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 7; i++) {
         lab_tick(250);
+    }
     printf("Lab L4 + 0.01 L, 60 T: ends %.4f L from L4 at mu 1/101 (bounded tadpole)\n",
            hypot(lab_value(LAB_X) - lab_point(4, 0), lab_value(LAB_Y) - lab_point(4, 1)));
     CHECK(lab_value(LAB_STATUS) == 2 && lab_value(LAB_Y) > 0.5 &&
@@ -356,8 +369,9 @@ int main(int argc, char **argv)
         for (int p = 0; p < 2; p++) {
             lab_reset(p, 0);
             for (int i = 0; i < 50; i++) {
-                for (int f = 0; f <= LAB_HILL; f++)
+                for (int f = 0; f <= LAB_HILL; f++) {
                     printf("%.17g%c", lab_value(f), f == LAB_HILL ? '\n' : ',');
+                }
                 lab_tick(1);
             }
         }

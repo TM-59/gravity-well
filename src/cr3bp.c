@@ -46,10 +46,12 @@ void cr3bp_step(double mu, Ship *s, double dt)
 
 Ship cr3bp_lagrange(double mu, int index)
 {
-    if (!(mu > 0 && mu <= 0.5) || index < 1 || index > 5)
+    if (!(mu > 0 && mu <= 0.5) || index < 1 || index > 5) {
         return (Ship){NAN, NAN, 0, 0};
-    if (index >= 4)
+    }
+    if (index >= 4) {
         return (Ship){0.5 - mu, (index == 4 ? 1 : -1) * sqrt(3.0) / 2, 0, 0};
+    }
     double lo = -2, hi = -mu - 1e-10;
     if (index == 1) {
         lo = -mu + 1e-10;
@@ -63,10 +65,11 @@ Ship cr3bp_lagrange(double mu, int index)
         double mid = (lo + hi) / 2, ax, ay;
         Ship s = {mid, 0, 0, 0};
         cr3bp_acceleration(mu, &s, &ax, &ay);
-        if (ax > 0)
+        if (ax > 0) {
             hi = mid;
-        else
+        } else {
             lo = mid;
+        }
     }
     return (Ship){(lo + hi) / 2, 0, 0, 0};
 }
@@ -80,21 +83,23 @@ static Vertex edge(double mu, double c, Vertex a, Vertex b)
     for (int k = 0; k < 42; k++) {
         Vertex m = {(a.x + b.x) / 2, (a.y + b.y) / 2, 0};
         m.f = 2 * cr3bp_potential(mu, m.x, m.y) - c;
-        if ((a.f >= 0) == (m.f >= 0))
+        if ((a.f >= 0) == (m.f >= 0)) {
             a = m;
-        else
+        } else {
             b = m;
+        }
     }
     return (Vertex){(a.x + b.x) / 2, (a.y + b.y) / 2, 0};
 }
 
 size_t cr3bp_contours(double mu, double c, double extent, int grid, ZeroSegment *out, size_t cap)
 {
-    if (!(mu > 0 && mu <= 0.5 && extent > 0 && isfinite(c)) || grid < 2 || grid > 512)
+    if (!(mu > 0 && mu <= 0.5 && extent > 0 && isfinite(c)) || grid < 2 || grid > 512) {
         return 0;
+    }
     size_t count = 0;
     double h = 2 * extent / grid;
-    for (int j = 0; j < grid; j++)
+    for (int j = 0; j < grid; j++) {
         for (int i = 0; i < grid; i++) {
             Vertex v[4] = {{-extent + i * h, -extent + j * h, 0},
                            {-extent + (i + 1) * h, -extent + j * h, 0},
@@ -105,21 +110,26 @@ size_t cr3bp_contours(double mu, double c, double extent, int grid, ZeroSegment 
                 v[k].f = 2 * cr3bp_potential(mu, v[k].x, v[k].y) - c;
                 valid &= isfinite(v[k].f);
             }
-            if (!valid)
+            if (!valid) {
                 continue;
+            }
             for (int t = 0; t < 2; t++) {
                 Vertex tri[3] = {v[0], v[t + 1], v[t + 2]}, hits[3];
                 int n = 0;
-                for (int k = 0; k < 3; k++)
-                    if ((tri[k].f >= 0) != (tri[(k + 1) % 3].f >= 0))
+                for (int k = 0; k < 3; k++) {
+                    if ((tri[k].f >= 0) != (tri[(k + 1) % 3].f >= 0)) {
                         hits[n++] = edge(mu, c, tri[k], tri[(k + 1) % 3]);
+                    }
+                }
                 if (n == 2) {
-                    if (out && count < cap)
+                    if (out && count < cap) {
                         out[count] = (ZeroSegment){hits[0].x, hits[0].y, hits[1].x, hits[1].y};
+                    }
                     count++;
                 }
             }
         }
+    }
     return count;
 }
 
@@ -136,8 +146,9 @@ void cr3bp_hessian(double mu, double x, double y, double *xx, double *xy, double
 int cr3bp_modes(double mu, int index, double *growth, double omega[2])
 {
     Ship p = cr3bp_lagrange(mu, index);
-    if (isnan(p.x))
+    if (isnan(p.x)) {
         return -1;
+    }
     double xx, xy, yy;
     cr3bp_hessian(mu, p.x, p.y, &xx, &xy, &yy);
     double b = 4.0 - xx - yy, c = xx * yy - xy * xy, disc = b * b - 4.0 * c;
@@ -151,10 +162,11 @@ int cr3bp_modes(double mu, int index, double *growth, double omega[2])
     }
     double root = sqrt(disc), s[2] = {(-b - root) / 2, (-b + root) / 2};
     for (int k = 0; k < 2; k++) {
-        if (s[k] < 0)
+        if (s[k] < 0) {
             omega[n++] = sqrt(-s[k]);
-        else
+        } else {
             *growth = fmax(*growth, sqrt(s[k]));
+        }
     }
     return n;
 }
@@ -179,19 +191,22 @@ Ship cr3bp_mode_start(double mu, int index, int mode, double scale)
     Ship p = cr3bp_lagrange(mu, index), bad = {NAN, NAN, 0, 0};
     double g, w[2], xx, xy, yy, xi, eta, vxi, veta;
     int n = cr3bp_modes(mu, index, &g, w);
-    if (n < 0)
+    if (n < 0) {
         return bad;
+    }
     cr3bp_hessian(mu, p.x, p.y, &xx, &xy, &yy);
     if (mode == 0) {
-        if (!(g > 0) || (4 - xx - yy) * (4 - xx - yy) < 4 * (xx * yy - xy * xy))
+        if (!(g > 0) || (4 - xx - yy) * (4 - xx - yy) < 4 * (xx * yy - xy * xy)) {
             return bad;
+        }
         xi = 2 * g + xy;
         eta = g * g - xx;
         vxi = g * xi;
         veta = g * eta;
     } else {
-        if (mode < 1 || mode > n || (g > 0 && n == 1))
+        if (mode < 1 || mode > n || (g > 0 && n == 1)) {
             return bad;
+        }
         double o = w[mode - 1];
         xi = xy;
         eta = -(o * o + xx);

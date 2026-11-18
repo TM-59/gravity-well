@@ -12,8 +12,9 @@ void flight_reset(int mode)
 {
     world = world_default();
     demo = mode == 1;
-    if (demo)
+    if (demo) {
         world.moon_gm = 0.0;
+    }
     ship = (Ship){1.0, 0.0, 0.0, circular_speed(&world, 1.0)};
     time_now = delta_v = 0.0;
     heading = PI / 2.0;
@@ -34,34 +35,43 @@ static void impulse(double target_speed)
 
 void flight_tick(int frames, int turn, int burn)
 {
-    if (frames < 0)
+    if (frames < 0) {
         return;
-    if (frames > 250)
+    }
+    if (frames > 250) {
         frames = 250;
+    }
     turn = (turn > 0) - (turn < 0);
     burn = burn > 0;
     for (int frame = 0; frame < frames && !status; frame++) {
-        if (!demo)
+        if (!demo) {
             heading = remainder(heading + turn * 0.08, 2.0 * PI);
+        }
         for (int k = 0; k < 10 && !status; k++) {
             if (demo) {
-                if (!phase && time_now >= burn1)
+                if (!phase && time_now >= burn1) {
                     impulse(sqrt(world.star_gm * (2.0 - 1.0 / 1.5)));
-                if (phase == 1 && time_now >= burn2)
+                }
+                if (phase == 1 && time_now >= burn2) {
                     impulse(circular_speed(&world, hypot(ship.x, ship.y)));
+                }
                 heading = atan2(ship.vy, ship.vx);
             }
             orbit_step(&world, &ship, time_now, heading, demo ? 0.0 : burn, 0.004);
             time_now += 0.004;
-            if (!demo && burn)
+            if (!demo && burn) {
                 delta_v += world.thrust * 0.004;
-            if (hypot(ship.x, ship.y) < 0.1)
+            }
+            if (hypot(ship.x, ship.y) < 0.1) {
                 status = 1;
+            }
             if (!demo && flight_value(FLIGHT_MOON_DISTANCE) < 0.15 &&
-                flight_value(FLIGHT_REL_SPEED) < 0.25)
+                flight_value(FLIGHT_REL_SPEED) < 0.25) {
                 status = 2;
-            if (demo && time_now >= end_time)
+            }
+            if (demo && time_now >= end_time) {
                 status = 3;
+            }
         }
     }
 }

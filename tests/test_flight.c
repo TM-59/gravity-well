@@ -44,10 +44,12 @@ static void transfer_bench(void)
     while (flight_value(FLIGHT_STATUS) == 0 && frames++ < 1000) {
         flight_tick(1, 1, 1); /* Demo must ignore manual inputs. */
         int phase = (int)flight_value(FLIGHT_PHASE);
-        if (prev == 0 && phase == 1)
+        if (prev == 0 && phase == 1) {
             dv1 = flight_value(FLIGHT_DV);
-        if (prev == 1 && phase == 2)
+        }
+        if (prev == 1 && phase == 2) {
             r_at_second_burn = flight_value(FLIGHT_RADIUS);
+        }
         if (phase == 2) {
             low = fmin(low, flight_value(FLIGHT_RADIUS));
             high = fmax(high, flight_value(FLIGHT_RADIUS));
@@ -68,8 +70,9 @@ static void transfer_bench(void)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2 || strcmp(argv[1], "--bench"))
+    if (argc < 2 || strcmp(argv[1], "--bench")) {
         manual_matches_existing_integrator();
+    }
     transfer_bench();
     puts("flight tests passed");
     return 0;

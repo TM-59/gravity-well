@@ -73,8 +73,9 @@ static inline int pilot_command(Pilot *p, const Voyage *v)
      * chance, every later one. */
     if (v->leg != p->leg || v->tows != p->tows) {
         /* A new leg, or a tow back to the start of this one: start the plan again. */
-        if (v->leg != p->leg)
+        if (v->leg != p->leg) {
             p->rng.s = sub_seed(p->key, (uint64_t)v->leg, 5);
+        }
         p->leg = v->leg;
         p->tows = v->tows;
         pilot_plan(p);
@@ -91,8 +92,9 @@ static inline int pilot_command(Pilot *p, const Voyage *v)
         return VC_COAST;
     }
     if (p->phase == P_TRANSFER) {
-        if (p->late == 0)
+        if (p->late == 0) {
             p->out = target > r;
+        }
         /* With Ilse calling the burns, cut on her word; alone, on the gauge. */
         int done = voyage_cue(v) == 1 ||
                    (!voyage_value(v, VV_COUNT_ON)
@@ -105,13 +107,15 @@ static inline int pilot_command(Pilot *p, const Voyage *v)
             p->rise = 0.0;
             return VC_COAST;
         }
-        if (!done)
+        if (!done) {
             p->late = 0;
+        }
         return p->out ? VC_RAISE : VC_LOWER;
     }
     if (p->phase == P_COAST) {
-        if (fabs(radial) > p->rise)
+        if (fabs(radial) > p->rise) {
             p->rise = fabs(radial);
+        }
         int at_ring = voyage_cue(v) == 2 ||
                       (p->out ? r >= target * (1.0 - p->lead) : r <= target * (1.0 + p->lead));
         /* Passed the apsis without reaching the ring (the radial speed has turned): circularize

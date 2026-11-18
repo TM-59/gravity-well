@@ -31,13 +31,15 @@ static int headless(const char *dir)
     int n = (int)(total / dt) / STRIDE + 2, i = 0, burned = 0;
     float *tt = malloc(n * sizeof *tt), *xs = malloc(n * sizeof *xs), *ys = malloc(n * sizeof *ys);
     float *rr = malloc(n * sizeof *rr), *er = malloc(n * sizeof *er);
-    if (!tt || !xs || !ys || !rr || !er)
+    if (!tt || !xs || !ys || !rr || !er) {
         return 1;
+    }
     char path[512];
     snprintf(path, sizeof path, "%s/run.csv", dir);
     FILE *csv = fopen(path, "w");
-    if (!csv)
+    if (!csv) {
         return 1;
+    }
     fprintf(csv, "t,x,y,r,energy\n");
     for (int k = 0; t < total && i < n; k++) {
         if (!burned && t >= half) {
@@ -62,16 +64,19 @@ static int headless(const char *dir)
     fclose(csv);
     snprintf(path, sizeof path, "%s/track.svg", dir);
     Series tr[] = {{"y", ys, "#1f77b4"}};
-    if (svg_plot(path, "Hohmann transfer path (y vs x)", "x", "y", xs, i, tr, 1))
+    if (svg_plot(path, "Hohmann transfer path (y vs x)", "x", "y", xs, i, tr, 1)) {
         return 1;
+    }
     snprintf(path, sizeof path, "%s/radius.svg", dir);
     Series ra[] = {{"r", rr, "#2ca02c"}};
-    if (svg_plot(path, "Orbital radius during the transfer", "t", "r", tt, i, ra, 1))
+    if (svg_plot(path, "Orbital radius during the transfer", "t", "r", tt, i, ra, 1)) {
         return 1;
+    }
     snprintf(path, sizeof path, "%s/energy.svg", dir);
     Series en[] = {{"E - E0 (after 2nd burn)", er, "#d62728"}};
-    if (svg_plot(path, "Energy error of velocity Verlet", "t", "dE", tt, i, en, 1))
+    if (svg_plot(path, "Energy error of velocity Verlet", "t", "dE", tt, i, en, 1)) {
         return 1;
+    }
     printf("dv1 %.4f, final r %.4f\n", dv1, hypot(s.x, s.y));
     free(tt);
     free(xs);
@@ -86,22 +91,27 @@ static int snapshot(void)
     World w = world_default();
     Ship s = {1.0, 0.0, 0.0, circular_speed(&w, 1.0)};
     static char buf[RENDER_COLS * RENDER_ROWS * 4];
-    if (!render_frame(&w, &s, 0.0, PI / 2.0, &s, 1, buf, sizeof buf))
+    if (!render_frame(&w, &s, 0.0, PI / 2.0, &s, 1, buf, sizeof buf)) {
         return 1;
+    }
     fputs(buf, stdout);
     return 0;
 }
 
 static int gif_colour(char c)
 {
-    if (c == '*')
+    if (c == '*') {
         return 2;
-    if (c == 'o')
+    }
+    if (c == 'o') {
         return 5;
-    if (c == '.')
+    }
+    if (c == '.') {
         return 4;
-    if (c == '^' || c == 'v' || c == '<' || c == '>')
+    }
+    if (c == '^' || c == 'v' || c == '<' || c == '>') {
         return 3;
+    }
     return 1;
 }
 
@@ -124,8 +134,9 @@ static int gif_demo(const char *path)
     static Ship trail[TRAIL];
     int tlen = 0, head = 0, b1 = 0, b2 = 0;
     Gif *g = gif_open(path, cw, ch, pal, 6);
-    if (!g)
+    if (!g) {
         return 1;
+    }
     for (int k = 0; t < t_end; k++) {
         if (!b1 && t >= t_burn1) {
             double v = sqrt(w.star_gm * (2.0 / r1 - 1.0 / a)), sp = hypot(s.vx, s.vy);
@@ -142,22 +153,25 @@ static int gif_demo(const char *path)
         if (k % 8 == 0) {
             trail[head] = s;
             head = (head + 1) % TRAIL;
-            if (tlen < TRAIL)
+            if (tlen < TRAIL) {
                 tlen++;
+            }
         }
         if (k % 40 == 0) {
             render_frame(&w, &s, t, atan2(s.vy, s.vx), trail, tlen, buf, sizeof buf);
             gif_draw_text(px, cw, ch, buf, scale, gif_colour);
-            if (gif_frame(g, px, 0))
+            if (gif_frame(g, px, 0)) {
                 return 1;
+            }
         }
         orbit_step(&w, &s, t, 0.0, 0.0, dt);
         t += dt;
     }
     render_frame(&w, &s, t, atan2(s.vy, s.vx), trail, tlen, buf, sizeof buf);
     gif_draw_text(px, cw, ch, buf, scale, gif_colour);
-    if (gif_frame(g, px, 200) || gif_close(g))
+    if (gif_frame(g, px, 200) || gif_close(g)) {
         return 1;
+    }
     printf("final radius %.4f (target %.1f)\n", hypot(s.x, s.y), r2);
     return 0;
 }
@@ -195,16 +209,21 @@ static int play(void)
         char c;
         burn = 0.0;
         while (read(STDIN_FILENO, &c, 1) == 1) {
-            if (c == 'q')
+            if (c == 'q') {
                 return 0;
-            if (c == 'a')
+            }
+            if (c == 'a') {
                 heading += 0.2;
-            if (c == 'd')
+            }
+            if (c == 'd') {
                 heading -= 0.2;
-            if (c == 'w')
+            }
+            if (c == 'w') {
                 burn = 1.0;
-            if (c == 'p')
+            }
+            if (c == 'p') {
                 paused = !paused;
+            }
         }
         if (!paused) {
             for (int k = 0; k < 10; k++) {
@@ -214,8 +233,9 @@ static int play(void)
             if (frame++ % 3 == 0) {
                 trail[head] = s;
                 head = (head + 1) % TRAIL;
-                if (tlen < TRAIL)
+                if (tlen < TRAIL) {
                     tlen++;
+                }
             }
         }
         double mx, my;
@@ -242,13 +262,17 @@ static int play(void)
 
 int main(int argc, char **argv)
 {
-    if (argc > 1 && strcmp(argv[1], "--lagrange") == 0)
+    if (argc > 1 && strcmp(argv[1], "--lagrange") == 0) {
         return lagrange_output(argc > 2 ? argv[2] : ".");
-    if (argc > 1 && strcmp(argv[1], "--headless") == 0)
+    }
+    if (argc > 1 && strcmp(argv[1], "--headless") == 0) {
         return headless(argc > 2 ? argv[2] : ".");
-    if (argc > 1 && strcmp(argv[1], "--snapshot") == 0)
+    }
+    if (argc > 1 && strcmp(argv[1], "--snapshot") == 0) {
         return snapshot();
-    if (argc > 1 && strcmp(argv[1], "--gif") == 0)
+    }
+    if (argc > 1 && strcmp(argv[1], "--gif") == 0) {
         return gif_demo(argc > 2 ? argv[2] : "demo.gif");
+    }
     return play();
 }

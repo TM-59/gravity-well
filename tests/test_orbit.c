@@ -51,8 +51,9 @@ static void test_energy_and_momentum_drift_are_tiny(void)
         orbit_step(&w, &s, t, 0.0, 0.0, dt);
         t += dt;
         double d = fabs(ship_energy(&w, &s) - e0);
-        if (d > worst)
+        if (d > worst) {
             worst = d;
+        }
     }
     CHECK(worst / fabs(e0) < 1e-3, "energy error %.2e", worst / fabs(e0));
     CHECK(fabs(ship_ang_momentum(&s) - l0) < 1e-9, "angular momentum drifted by %.2e",
@@ -117,8 +118,9 @@ static void test_render_fits_the_screen(void)
     static char buf[RENDER_COLS * RENDER_ROWS * 2];
     size_t used = render_frame(&w, &s, 0.0, 0.0, &s, 1, buf, sizeof buf);
     int lines = 0;
-    for (size_t i = 0; i < used; i++)
+    for (size_t i = 0; i < used; i++) {
         lines += buf[i] == '\n';
+    }
     CHECK(lines == RENDER_ROWS, "expected %d lines, got %d", RENDER_ROWS, lines);
     CHECK(render_frame(&w, &s, 0.0, 0.0, &s, 1, buf, 8) == 0, "tiny buffer must be refused");
 }

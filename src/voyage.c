@@ -36,8 +36,9 @@
 #define POD_R 1.60     /* VE_POD: leg 4 goes down to Ilse's pod */
 #define POD_FUEL 0.32  /* VE_POD: the pod refills the tank by this much */
 #define POD_SOFT 0.012 /* VE_POD: the grapple holds only below this eccentricity */
-#define POD_HOLD 11.0  /* VE_POD: T of flying on the pod's ring while it drifts up to the grapple  \
-                        */
+#define POD_HOLD                                                                                   \
+    11.0 /* VE_POD: T of flying on the pod's ring while it drifts up to the grapple                \
+          */
 
 /* Leg rings: 1.0 -> 1.5 -> the buoy (near 1.9 or far 2.4; 2.2 with no route effect) -> 1.8 -> (2.2,
  * or Ilse's pod at 1.6) -> 2.6. */
@@ -77,13 +78,16 @@ static void elements(const Voyage *v, double *a, double *e, double *apo, double 
 
 double voyage_wobble(const Voyage *v)
 {
-    if (v->leg >= V_LEGS)
+    if (v->leg >= V_LEGS) {
         return 0.0;
+    }
     double amp = BASE_WOBBLE;
-    if (v->count && on(v, VE_DOCK))
+    if (v->count && on(v, VE_DOCK)) {
         amp *= COUNT_WOBBLE;
-    if (v->leg == 3 && on(v, VE_FLARE))
+    }
+    if (v->leg == 3 && on(v, VE_FLARE)) {
         amp += FLARE_WOBBLE;
+    }
     /* The same smooth wobble for everyone who reads the gauge: it depends only on the mission
      * clock. */
     double t = v->time;
@@ -94,8 +98,9 @@ double voyage_boil(const Voyage *v)
 {
     /* The flare's heat falls off as 1/r^2 (FLARE_BOIL at r = 2); grappled to Ilse's pod, the tug
      * sits in its shadow. */
-    if (v->leg != 3 || !on(v, VE_FLARE) || v->held > 0.0)
+    if (v->leg != 3 || !on(v, VE_FLARE) || v->held > 0.0) {
         return 0.0;
+    }
     double r2 = v->ship.x * v->ship.x + v->ship.y * v->ship.y;
     return FLARE_BOIL * 4.0 / r2;
 }
@@ -115,16 +120,20 @@ int voyage_cue(const Voyage *v)
     /* Ilse's count, from the true orbit (not the wobbling gauge): "cut" when the burn has put the
      * far side of the orbit on the ring, "now" when the tug reaches the ring. Nothing once her
      * channel is gone. */
-    if (!v->count || !on(v, VE_DOCK) || v->scene != VS_NONE || v->leg >= V_LEGS)
+    if (!v->count || !on(v, VE_DOCK) || v->scene != VS_NONE || v->leg >= V_LEGS) {
         return 0;
+    }
     double a, e, apo, peri, r = hypot(v->ship.x, v->ship.y), t = v->target_r;
     elements(v, &a, &e, &apo, &peri);
-    if (v->command == VC_RAISE && apo >= t)
+    if (v->command == VC_RAISE && apo >= t) {
         return 1;
-    if (v->command == VC_LOWER && peri <= t)
+    }
+    if (v->command == VC_LOWER && peri <= t) {
         return 1;
-    if (v->command == VC_COAST && fabs(r - t) < 0.02 * t && e >= CLEAR_E)
+    }
+    if (v->command == VC_COAST && fabs(r - t) < 0.02 * t && e >= CLEAR_E) {
         return 2;
+    }
     return 0;
 }
 
@@ -136,8 +145,9 @@ double voyage_hold_need(const Voyage *v)
 static void open_scene(Voyage *v, int scene)
 {
     v->scene = scene;
-    if (v->order_len < VS_COUNT)
+    if (v->order_len < VS_COUNT) {
         v->order[v->order_len++] = scene;
+    }
     if (voyage_heavy(scene)) {
         v->banner = VB_NONE;
         v->banner_left = 0.0;
@@ -148,18 +158,21 @@ static void raise_banner(Voyage *v, int banner)
 {
     v->banner = banner;
     v->banner_left = 1.5;
-    if (banner == VB_CLEAR)
+    if (banner == VB_CLEAR) {
         v->loud++;
+    }
 }
 
 static void start_leg(Voyage *v)
 {
     v->from_r = hypot(v->ship.x, v->ship.y);
     v->target_r = TARGET[v->leg];
-    if (v->leg == 3 && v->turned == 0 && on(v, VE_POD))
+    if (v->leg == 3 && v->turned == 0 && on(v, VE_POD)) {
         v->target_r = POD_R;
-    if (v->leg == 1 && v->route >= 0 && on(v, VE_ROUTE))
+    }
+    if (v->leg == 1 && v->route >= 0 && on(v, VE_ROUTE)) {
         v->target_r = v->route == 0 ? NEAR_R : FAR_R;
+    }
     v->leg_time = 0.0;
     v->held = 0.0;
     v->missed = 0;
@@ -186,8 +199,9 @@ static void clear_leg(Voyage *v)
     int scene = next[v->leg];
     v->leg++;
     /* The heavy scenes and the ending get the screen to themselves: no "leg cleared" banner. */
-    if (!voyage_heavy(scene) && scene != VS_QUAY)
+    if (!voyage_heavy(scene) && scene != VS_QUAY) {
         raise_banner(v, VB_CLEAR);
+    }
     open_scene(v, scene);
 }
 
@@ -202,8 +216,9 @@ static void tow(Voyage *v, int carry)
         v->leg_time = 0.0;
     }
     if (carry) {
-        if (v->fuel < CARRY_FUEL)
+        if (v->fuel < CARRY_FUEL) {
             v->fuel = CARRY_FUEL;
+        }
     } else {
         v->drift = DRONE_WAIT; /* the drone takes this long to reach the tug; the fuel goes in when
                                   it docks */
@@ -217,12 +232,15 @@ static void tow(Voyage *v, int carry)
 
 void voyage_tick(Voyage *v, int frames, int command)
 {
-    if (frames < 0 || v->scene != VS_NONE || v->leg >= V_LEGS)
+    if (frames < 0 || v->scene != VS_NONE || v->leg >= V_LEGS) {
         return;
-    if (frames > 250)
+    }
+    if (frames > 250) {
         frames = 250;
-    if (command < VC_COAST || command > VC_MATCH)
+    }
+    if (command < VC_COAST || command > VC_MATCH) {
         command = VC_COAST;
+    }
     for (int f = 0; f < frames && v->scene == VS_NONE && v->leg < V_LEGS; f++) {
         int leg = v->leg;
         v->command = command;
@@ -230,13 +248,15 @@ void voyage_tick(Voyage *v, int frames, int command)
             double heading = atan2(v->ship.vy, v->ship.vx), burn = 0.0;
             if (v->drift > 0.0 && (v->drift -= V_DT) <= 0.0) {
                 v->drift = 0.0;
-                if (v->refuel && v->fuel < TOW_FUEL)
+                if (v->refuel && v->fuel < TOW_FUEL) {
                     v->fuel = TOW_FUEL;
+                }
                 v->refuel = 0;
             }
             if (v->fuel > 0.0 && v->drift <= 0.0 && command != VC_COAST) {
-                if (command == VC_RAISE)
+                if (command == VC_RAISE) {
                     burn = 1.0;
+                }
                 if (command == VC_LOWER) {
                     burn = 1.0;
                     heading += PI;
@@ -254,14 +274,17 @@ void voyage_tick(Voyage *v, int frames, int command)
             v->fuel = fmax(0.0, v->fuel - burn * v->world.thrust * V_DT - voyage_boil(v) * V_DT);
             v->time += V_DT;
             v->leg_time += V_DT;
-            if (v->fuel < RED_LINE)
+            if (v->fuel < RED_LINE) {
                 v->red += V_DT;
-            if (v->fuel < RED_LINE)
+            }
+            if (v->fuel < RED_LINE) {
                 v->crisis_leg[leg] = 1;
+            }
         }
         v->frames++;
-        if (v->banner_left > 0.0 && (v->banner_left -= V_DT * V_SUBSTEPS) <= 0.0)
+        if (v->banner_left > 0.0 && (v->banner_left -= V_DT * V_SUBSTEPS) <= 0.0) {
             v->banner = VB_NONE;
+        }
         double r = hypot(v->ship.x, v->ship.y), a, e, apo, peri;
         elements(v, &a, &e, &apo, &peri);
         int on_ring = fabs(a - v->target_r) < CLEAR_A * v->target_r && e < CLEAR_E;
@@ -292,41 +315,46 @@ void voyage_tick(Voyage *v, int frames, int command)
                 v->held = frame;
             }
         }
-        if (r < SCORCH_R || r > LOST_R || v->leg_time > LEG_LIMIT)
+        if (r < SCORCH_R || r > LOST_R || v->leg_time > LEG_LIMIT) {
             tow(v, 1);
-        /* While Ilse is on the channel her dock's drone refuels a dry tug where it drifts. After
-         * the silence only Lamp Quay's tug can come, and it drags the tug back to the start of the
-         * leg (VE_SILENCE). */
-        else if (v->fuel <= 0.0 && v->drift <= 0.0)
+            /* While Ilse is on the channel her dock's drone refuels a dry tug where it drifts.
+             * After the silence only Lamp Quay's tug can come, and it drags the tug back to the
+             * start of the leg (VE_SILENCE). */
+        } else if (v->fuel <= 0.0 && v->drift <= 0.0) {
             tow(v, !v->count);
+        }
     }
 }
 
 int voyage_answer(Voyage *v, int option)
 {
     int scene = v->scene;
-    if (scene == VS_NONE || option < 0 || option >= voyage_options(scene))
+    if (scene == VS_NONE || option < 0 || option >= voyage_options(scene)) {
         return 1;
+    }
     v->scene = VS_NONE;
     switch (scene) {
     case VS_DOCK:
         v->count = 1;
-        if (on(v, VE_DOCK))
+        if (on(v, VE_DOCK)) {
             v->fuel = DOCK_TANK;
+        }
         start_leg(v);
         break;
     case VS_ROUTE:
         v->route = option;
         /* The far buoy's keeper fires its spare fuel down to a tug that commits to the long climb.
          */
-        if (on(v, VE_ROUTE) && option == 1)
+        if (on(v, VE_ROUTE) && option == 1) {
             v->fuel += FAR_BONUS;
+        }
         start_leg(v);
         break;
     case VS_BEACON:
         /* What is left in the buoy's cache goes into the tank. */
-        if (on(v, VE_CACHE))
+        if (on(v, VE_CACHE)) {
             v->fuel += CACHE_FUEL;
+        }
         open_scene(v, VS_FLARE);
         break;
     case VS_FLARE:
@@ -337,8 +365,9 @@ int voyage_answer(Voyage *v, int option)
         start_leg(v);
         break;
     case VS_SILENCE:
-        if (on(v, VE_SILENCE))
+        if (on(v, VE_SILENCE)) {
             v->count = 0;
+        }
         start_leg(v);
         break;
     case VS_QUAY:
@@ -369,8 +398,9 @@ double voyage_value(const Voyage *v, int field)
         return v->time;
     case VV_HEADING: {
         double h = atan2(s->vy, s->vx);
-        if (v->command == VC_LOWER)
+        if (v->command == VC_LOWER) {
             h += PI;
+        }
         if (v->command == VC_MATCH) {
             double dx, dy;
             match_vector(v, &dx, &dy);

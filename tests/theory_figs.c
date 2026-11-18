@@ -48,8 +48,9 @@ static uint64_t play_key_like(void) { return sub_seed(20261111ULL, 0, 9); }
 static double largest(const float *a, int from, int n)
 {
     double m = 0.0;
-    for (int i = from; i < n; i++)
+    for (int i = from; i < n; i++) {
         m = fmax(m, a[i]);
+    }
     return m;
 }
 
@@ -99,8 +100,9 @@ static double measured_period(const World *w, double r, double dt)
     for (int k = 0; k < 4000000; k++) {
         orbit_step(w, &s, t, 0.0, 0.0, dt);
         t += dt;
-        if (prev_y < 0.0 && s.y >= 0.0 && s.x > 0.0)
+        if (prev_y < 0.0 && s.y >= 0.0 && s.x > 0.0) {
             return t - dt * s.y / (s.y - prev_y);
+        }
         prev_y = s.y;
     }
     return -1.0;
@@ -254,12 +256,14 @@ static void fig_escape(void)
     for (int k = 0; k < 10000; k++) {
         if (k % 10 == 0) {
             xs[n] = (float)(k * dt);
-            for (int j = 0; j < 3; j++)
+            for (int j = 0; j < 3; j++) {
                 out[j][n] = (float)hypot(s[j].x, s[j].y);
+            }
             n++;
         }
-        for (int j = 0; j < 3; j++)
+        for (int j = 0; j < 3; j++) {
             orbit_step(&w, &s[j], k * dt, 0.0, 0.0, dt);
+        }
     }
     Ship e = tangential(1.0, ve);
     value("escape-speed-r1", "sqrt(2) x circular_speed at r = 1 (theory sqrt(2 GM / r))", ve,
@@ -402,8 +406,9 @@ static void fig_thrust(void)
             yb[n] = (float)(w.thrust * k * dt);
             n++;
         }
-        if (k < 2500)
+        if (k < 2500) {
             orbit_step(&w, &s, k * dt, 0.3, 1.0, dt);
+        }
     }
     value("thrust-dv",
           "speed after burning for 10 T in empty space (theory thrust x time = 0.02 x 10)",
@@ -442,18 +447,21 @@ static void fig_thrust(void)
         ya[n] = (float)voyage_value(&v2, VV_APO);
         yb[n] = 2.0f;
         n++;
-        if (i == 0)
+        if (i == 0) {
             value(
                 "finite-burn-apoapsis-fast",
                 "apoapsis after spending 0.1547 in a 0.04 T burn (thrust 3.9; an impulse gives 2)",
                 voyage_value(&v2, VV_APO), 2.0);
-        if (i == 10)
+        }
+        if (i == 10) {
             value("finite-burn-apoapsis-tug", "the same in 1.54 T, the Ice Run tug's thrust 0.10",
                   voyage_value(&v2, VV_APO), 2.0);
-        if (i == 40)
+        }
+        if (i == 40) {
             value("finite-burn-apoapsis-slow",
                   "the same in 6.04 T, almost a full turn of ring 1 (thrust 0.026)",
                   voyage_value(&v2, VV_APO), 2.0);
+        }
     }
     Series f[] = {{"apoapsis reached", ya, "#1f77b4"}, {"impulse: 2", yb, "#d62728"}};
     plot("finite-burn.svg", "The same delta-v spread over a longer burn reaches less far",
@@ -494,11 +502,13 @@ static void fig_apsides(void)
             }
         } else if (phase == 1) {
             if (voyage_value(&v, VV_RADIUS) >= 0.999 * apo_after_raise ||
-                voyage_value(&v, VV_RADIAL) < 0.0)
+                voyage_value(&v, VV_RADIAL) < 0.0) {
                 phase = 2;
+            }
         }
-        if (phase == 2)
+        if (phase == 2) {
             cmd = voyage_value(&v, VV_MATCH_ERROR) > 1e-9 ? VC_MATCH : VC_COAST;
+        }
         voyage_tick(&v, 1, cmd);
     }
     value("raise-periapsis",
@@ -554,12 +564,14 @@ static void val_verlet(void)
     /* Time reversal: step forward, flip the velocity, step again, flip back. */
     World g = star_only();
     Ship a = tangential(1.0, 1.2), b = a;
-    for (int k = 0; k < 2500; k++)
+    for (int k = 0; k < 2500; k++) {
         orbit_step(&g, &b, 0.0, 0.0, 0.0, dt);
+    }
     b.vx = -b.vx;
     b.vy = -b.vy;
-    for (int k = 0; k < 2500; k++)
+    for (int k = 0; k < 2500; k++) {
         orbit_step(&g, &b, 0.0, 0.0, 0.0, dt);
+    }
     value("verlet-reversal",
           "distance from the start after 2500 steps forward, a velocity flip and 2500 steps more "
           "(theory 0)",
@@ -604,10 +616,11 @@ static void fig_energy_drift(void)
             yb[n] = (float)log10(de + 1e-16);
             n++;
         }
-        if (k < steps / 10)
+        if (k < steps / 10) {
             worst = fmax(worst, dv);
-        else
+        } else {
             worst_late = fmax(worst_late, dv);
+        }
         euler_last = de;
         orbit_step(&w, &v, k * dt, 0.0, 0.0, dt);
         euler_step(&w, &e, k * dt, dt);
@@ -636,8 +649,9 @@ static void fig_order(void)
     double dts[7] = {0.064, 0.032, 0.016, 0.008, 0.004, 0.002, 0.001}, errs[7], pos[7], plain = 0.0;
     double span = 8.0;
     Ship ref = tangential(1.0, 1.2);
-    for (int k = 0; k < 128000; k++)
+    for (int k = 0; k < 128000; k++) {
         orbit_step(&w, &ref, 0.0, 0.0, 0.0, span / 128000.0);
+    }
     for (int i = 0; i < 7; i++) {
         Ship s = tangential(1.0, 1.2);
         int steps = (int)floor(span / dts[i] + 0.5);
@@ -650,8 +664,9 @@ static void fig_order(void)
         }
         errs[i] = worst;
         pos[i] = hypot(s.x - ref.x, s.y - ref.y);
-        if (i == 4)
+        if (i == 4) {
             plain = worst_plain;
+        }
         xs[i] = (float)log10(dt);
         ya[i] = (float)log10(worst);
         yb[i] = (float)log10(pos[i]);
@@ -703,8 +718,9 @@ static void fly(uint64_t key, unsigned effects, int route, int turned, Flown *ou
             int scene = v.scene;
             out->scenes++;
             voyage_answer(&v, scene == VS_ROUTE ? route : scene == VS_ILSE ? turned : 0);
-            if (v.scene == VS_NONE && v.leg < V_LEGS)
+            if (v.scene == VS_NONE && v.leg < V_LEGS) {
                 out->fuel_start[v.leg] = v.fuel;
+            }
             continue;
         }
         int leg = v.leg;
@@ -728,12 +744,14 @@ static void fly(uint64_t key, unsigned effects, int route, int turned, Flown *ou
         if (v.leg != leg) {
             out->t_clear[leg] = v.time;
             out->fuel_end[leg] = v.fuel;
-            if (held_since >= 0.0 && out->pod_wait == 0.0)
+            if (held_since >= 0.0 && out->pod_wait == 0.0) {
                 out->pod_wait = v.time - held_since;
+            }
         }
     }
-    if (v.scene != VS_NONE)
+    if (v.scene != VS_NONE) {
         out->scenes++; /* the quay */
+    }
     out->tows = v.tows;
     out->total = v.time;
     if (record) {
@@ -902,8 +920,9 @@ static void fig_tow(void)
         yb[n] = (float)(v.drift / 20.0);
         n++;
         voyage_tick(&v, 1, VC_RAISE);
-        if (dry_at < 0.0 && v.tows == 1)
+        if (dry_at < 0.0 && v.tows == 1) {
             dry_at = v.time;
+        }
         if (dry_at >= 0.0 && back_at < 0.0 && v.fuel > 0.0) {
             back_at = v.time;
             fuel_back = v.fuel;

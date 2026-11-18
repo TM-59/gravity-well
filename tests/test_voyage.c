@@ -63,8 +63,9 @@ static double sign_p(int k, int n)
     double tail = 0.0;
     for (int x = k; x <= n; x++) {
         double comb = 1.0;
-        for (int y = 0; y < x; y++)
+        for (int y = 0; y < x; y++) {
             comb = comb * (n - y) / (y + 1);
+        }
         tail += comb;
     }
     return fmin(1.0, 2.0 * tail / pow(2.0, n));
@@ -123,21 +124,24 @@ static void check_choice(const char *text, const char *head)
         double tail = 0.0;
         for (int x = k; x <= ABLATION_SEEDS; x++) {
             double comb = 1.0;
-            for (int y = 0; y < x; y++)
+            for (int y = 0; y < x; y++) {
                 comb = comb * (ABLATION_SEEDS - y) / (y + 1);
+            }
             tail += comb;
         }
         double p = 2.0 * tail / pow(2.0, ABLATION_SEEDS);
         double rel = fabs(diff / ABLATION_SEEDS) / fmax(fabs(base / ABLATION_SEEDS), 1.0);
-        if (p <= 0.05 && rel >= 0.05)
+        if (p <= 0.05 && rel >= 0.05) {
             wins[lower0 > lower1 ? 0 : 1]++;
+        }
     }
     int dominated[2] = {0, 0};
-    for (int i = 0; i < ABLATION_SEEDS; i++)
+    for (int i = 0; i < ABLATION_SEEDS; i++) {
         for (int hi = 0; hi < 2; hi++) {
             const double *x = v[hi][i], *y = v[1 - hi][i];
             dominated[hi] += x[0] <= y[0] && x[1] <= y[1] && (x[0] < y[0] || x[1] < y[1]);
         }
+    }
     assert(wins[0] == 1 && wins[1] == 1);
     assert(dominated[0] < 0.85 * ABLATION_SEEDS && dominated[1] < 0.85 * ABLATION_SEEDS);
     printf("[choice] %s each path wins one outcome; better-or-equal on both in %d/%d and %d/%d "
@@ -160,10 +164,12 @@ int main(void)
         }
         strcat(want, "], \"won\": true");
         int seeds = 0, orders = 0;
-        for (const char *c = text; (c = strstr(c, "\"seed\": ")); c++)
+        for (const char *c = text; (c = strstr(c, "\"seed\": ")); c++) {
             seeds++;
-        for (const char *c = text; (c = strstr(c, want)); c++)
+        }
+        for (const char *c = text; (c = strstr(c, want)); c++) {
             orders++;
+        }
         assert(seeds >= 8 && orders == seeds);
         assert(strstr(text,
                       "\"ending\": \"end-turned\", \"quiet\": [\"flare\", \"ilse\", \"silence\"]"));
@@ -180,8 +186,9 @@ int main(void)
         run_voyage(play_key(3), VE_ALL, 1, 0, &r);
         assert(r.completed && r.order_len == VS_COUNT && r.ending == 0 && r.quiet[VS_FLARE] &&
                r.quiet[VS_ILSE] && r.quiet[VS_SILENCE]);
-        for (int k = 0; k < VS_COUNT; k++)
+        for (int k = 0; k < VS_COUNT; k++) {
             assert(r.order[k] == DESIGN[k]);
+        }
     }
 
     /* [mech] dock: Ilse adds what the dock can spare (0.30 -> 0.40), and her count steadies the
@@ -269,8 +276,9 @@ int main(void)
             double p = sign_p(worse > better ? worse : better, ABLATION_SEEDS);
             double rel = fabs(off - on) / fmax(fabs(on), ABLATION_SEEDS);
             int ok = worse > better && p <= 0.05 && rel >= 0.05;
-            if (m > 0)
+            if (m > 0) {
                 assert(ok);
+            }
             hits += ok;
             printf("[mech] beacon off - on, %s: higher in %d/%d seeds, lower in %d, mean %+.2f, p "
                    "%.4f%s\n",
@@ -344,8 +352,9 @@ int main(void)
             assert(g.drift == 0.0 && g.fuel - f > 0.32 - 0.002 && g.fuel - f < 0.32 &&
                    voyage_boil(&g) == 0.0);
             double t = g.time;
-            while (g.scene == VS_NONE)
+            while (g.scene == VS_NONE) {
                 voyage_tick(&g, 1, VC_COAST);
+            }
             assert(g.scene == VS_SILENCE && g.time - t >= 11.0 - 0.04 - 1e-9);
             /* A round orbit with the engine on: the pod waits for the engine to go quiet. */
             Voyage h = a;
@@ -386,8 +395,9 @@ int main(void)
         assert(a.tows_leg[4] == 1 && close_to(hypot(a.ship.x, a.ship.y), from) &&
                close_to(a.fuel, 0.20) && a.drift == 0.0);
         assert(b.tows_leg[4] == 1 && close_to(b.drift, 3.0) && b.fuel == 0.0);
-        while (b.drift > 0.0)
+        while (b.drift > 0.0) {
             voyage_tick(&b, 1, VC_RAISE);
+        }
         assert(b.fuel > 0.14 && b.fuel <= 0.15);
         puts("[mech] silence: a dry tank now means Lamp Quay's tug drags you back to the start of "
              "the leg");
