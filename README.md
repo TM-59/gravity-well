@@ -26,6 +26,8 @@ make theory-figs              # docs/theory の図と実測値の表を再生成
 make theory-check             # 手引きの対応表(文 → 頁 → 図 → 関数 → テスト)を検査
 make lagrange-plots           # L1〜L5・ヤコビ定数・ゼロ速度曲線の CSV/SVG
 ./gravity-well --lagrange .   # 同じ出力を指定した既存ディレクトリへ
+make check-style              # 整形・lint・型検査(C: clang-format/clang-tidy/-Werror, Python: Ruff/mypy, JS: Biome/tsc)
+make fmt                      # 整形を書き戻す
 ```
 
 ブラウザー版は Emscripten の `emcc` と Python 3.14 を PATH に置いて実行する。

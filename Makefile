@@ -1,6 +1,9 @@
 CC      ?= cc
 CFLAGS  ?= -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror
 LDLIBS  += -lm
+# The terminal mode (termios, STDIN_FILENO) of src/main.c is POSIX; the feature macro is set here
+# because a name starting with an underscore and a capital letter is reserved inside the program.
+POSIX   := -D_POSIX_C_SOURCE=200809L
 SRC     := src/orbit.c src/svg.c src/render.c src/gif.c
 CR3BP   := src/cr3bp.c src/lagrange.c src/svg.c
 EMCC    ?= emcc
@@ -11,7 +14,7 @@ NODE    ?= node
 all: gravity-well
 
 gravity-well: $(SRC) src/cr3bp.c src/lagrange.c src/main.c
-	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+	$(CC) $(CFLAGS) $(POSIX) -o $@ $^ $(LDLIBS)
 
 test_orbit: $(SRC) tests/test_orbit.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
@@ -66,15 +69,15 @@ web: dist/orbit.js dist/cr3bp.js
 	cp web/lagrange.html web/lagrange.css web/lagrange.js dist/
 	mkdir -p dist/art
 	cp assets/art/* dist/art/
-	$(PYTHON) scripts/check-size.py
+	$(PYTHON) scripts/check_size.py
 
 dist/orbit.js: src/orbit.c src/orbit.h src/flight.c src/flight.h src/voyage.c src/voyage.h src/voyage_web.c
 	mkdir -p dist
-	$(EMCC) -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror src/orbit.c src/flight.c src/voyage.c src/voyage_web.c --no-entry -sMODULARIZE -sEXPORT_NAME=createOrbit -sENVIRONMENT=web -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_flight_reset","_flight_tick","_flight_value","_vw_reset","_vw_tick","_vw_answer","_vw_value"]' -o $@
+	$(EMCC) -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror src/orbit.c src/flight.c src/voyage.c src/voyage_web.c --no-entry -sMODULARIZE -sEXPORT_NAME=createOrbit -sENVIRONMENT=web -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_flight_reset","_flight_steer","_flight_throttle","_flight_tick","_flight_value","_vw_reset","_vw_command","_vw_tick","_vw_answer","_vw_value"]' -o $@
 
 dist/cr3bp.js: $(CR3BP) src/cr3bp.h src/lagrange.h src/orbit.h
 	mkdir -p dist
-	$(EMCC) $(CFLAGS) $(CR3BP) --no-entry -sMODULARIZE -sEXPORT_NAME=createLagrange -sENVIRONMENT=web,node -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_lab_reset","_lab_set_mu","_lab_tick","_lab_value","_lab_point","_lab_segment","_lab_allowed"]' -o $@
+	$(EMCC) $(CFLAGS) $(CR3BP) --no-entry -sMODULARIZE -sEXPORT_NAME=createLagrange -sENVIRONMENT=web,node -sFILESYSTEM=0 -sEXPORTED_FUNCTIONS='["_lab_set_level","_lab_reset","_lab_set_mu","_lab_tick","_lab_value","_lab_point_x","_lab_point_y","_lab_point_c","_lab_segment_x1","_lab_segment_y1","_lab_segment_x2","_lab_segment_y2","_lab_allowed"]' -o $@
 
 play: web
 	$(PYTHON) -m http.server 4216 --bind localhost --directory dist
@@ -104,7 +107,7 @@ lagrange-plots: gravity-well
 
 # Fails when a statement of docs/theory has no figure, a link is broken, or a referenced function or test is gone.
 theory-check:
-	$(PYTHON) scripts/theory-check.py
+	$(PYTHON) scripts/theory_check.py
 
 clean:
 	rm -f gravity-well test_orbit test_gif test_flight test_voyage story_bench theory_figs test_cr3bp
@@ -121,13 +124,13 @@ TM_UNIT_BINS := test_orbit test_gif test_flight test_voyage story_bench test_cr3
 
 .PHONY: test-unit check test-trace test-perf test-e2e tm-ctest tm-deps test-tm-unit test-tm-trace test-tm-perf test-tm-e2e
 test-unit:
-	$(TM_TEST_PYTHON) scripts/local-test.py unit
+	$(TM_TEST_PYTHON) scripts/local_test.py unit
 
 check:
-	$(TM_TEST_PYTHON) scripts/local-test.py all
+	$(TM_TEST_PYTHON) scripts/local_test.py all
 
 test-trace test-perf test-e2e:
-	$(TM_TEST_PYTHON) scripts/local-test.py $(@:test-%=%)
+	$(TM_TEST_PYTHON) scripts/local_test.py $(@:test-%=%)
 
 tm-ctest:
 	mkdir -p test-results
@@ -147,3 +150,30 @@ tm-deps:
 
 test-tm-e2e: tm-ctest tm-deps
 	"$(TM_TEST_CTEST)" --test-dir .tm-ctest -j 1 -L '^e2e$$' --output-on-failure --output-junit "$(CURDIR)/test-results/e2e.xml"
+
+# ---- Formatter, linter and type checker (no ignores) ----
+# C: clang-format, clang-tidy (.clang-tidy) and the compiler with -Wall -Wextra -Wpedantic -Werror.
+# Python (scripts/*.py): Ruff format, Ruff with every rule, mypy strict. These are pinned by uv.lock.
+# JavaScript, CSS, HTML, JSON: Biome (recommended rules, warnings fail) and tsc --checkJs strict,
+# pinned by package-lock.json. TIDY_EXTRA passes -isystem paths when the C library headers are elsewhere.
+RUN        = uv run --locked
+STYLE_C    = $(shell git ls-files '*.c' '*.h')
+STYLE_TU   = $(shell git ls-files '*.c')
+TIDY_EXTRA ?=
+.PHONY: fmt lint typecheck check-style
+fmt:
+	$(RUN) clang-format -i $(STYLE_C)
+	$(RUN) ruff format scripts
+	$(RUN) ruff check --fix scripts
+	npm run fmt
+lint:
+	$(RUN) clang-format --dry-run --Werror $(STYLE_C)
+	$(RUN) clang-tidy $(STYLE_TU) -- -std=c11 -Isrc -Itests $(POSIX) $(TIDY_EXTRA)
+	$(RUN) ruff format --check scripts
+	$(RUN) ruff check scripts
+	npm run lint
+typecheck:
+	for f in $(STYLE_TU); do $(CC) $(CFLAGS) $(POSIX) -Isrc -Itests -fsyntax-only $$f || exit 1; done
+	$(RUN) mypy
+	npm run typecheck
+check-style: lint typecheck

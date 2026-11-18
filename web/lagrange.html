@@ -5,7 +5,7 @@
   <meta name="description" content="Explore five Lagrange points, Jacobi conservation and zero-velocity curves in the circular restricted three-body problem, computed in C and WebAssembly.">
   <title>Gravity Well — Lagrange laboratory</title>
   <link rel="icon" href="data:,"><link rel="stylesheet" href="lagrange.css">
-  <script defer src="cr3bp.js"></script><script defer src="lagrange.js"></script>
+  <script defer src="cr3bp.js"></script><script type="module" src="lagrange.js"></script>
 </head>
 <body>
   <header><a href="./" class="back">← Orbital observatory</a><span>GRAVITY WELL / LAB 02</span></header>
@@ -23,12 +23,12 @@
       <aside>
         <p class="eyebrow">TRY AN ORBIT</p><h2 id="experiment">A little nudge at L4.</h2>
         <p id="guidance">Start the L4 libration. The displaced traveller loops near the triangular point while C stays constant.</p>
-        <div class="presets"><button id="l4" disabled>L4 libration</button><button id="l1" disabled>L1 passage</button></div>
-        <div class="controls"><button id="pause" disabled>Start</button><button id="reset" disabled>Reset</button></div>
+        <div class="presets"><button type="button" id="l4" disabled>L4 libration</button><button type="button" id="l1" disabled>L1 passage</button></div>
+        <div class="controls"><button type="button" id="pause" disabled>Start</button><button type="button" id="reset" disabled>Reset</button></div>
         <label for="mass">Secondary mass fraction μ = <output id="mass-out" for="mass">—</output></label>
         <input id="mass" type="range" min="0.001" max="0.5" step="0.0005" value="0.01" disabled>
         <p id="stability" class="verdict" role="status">—</p>
-        <button id="view" class="wide" aria-pressed="false" disabled>View: rotating frame</button>
+        <button type="button" id="view" class="wide" aria-pressed="false" disabled>View: rotating frame</button>
         <label for="level">Compare the L1 neck</label>
         <select id="level" disabled><option value="0">Traveller's C</option><option value="1">Closed · C(L1) + 0.01</option><option value="2">Open · C(L1) − 0.01</option></select>
         <p id="run-status" role="status">Loading orbital engine…</p>

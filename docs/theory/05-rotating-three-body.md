@@ -43,7 +43,7 @@ L1 is between the primaries; L2 is beyond the secondary; L3 is beyond the primar
 
 ![All five points and the neck at L1, computed from the C model](figures/zero-velocity.svg)
 
-**Code.** `src/cr3bp.c#cr3bp_lagrange` (100 bisections); `src/lagrange.c#lab_point` exposes the same coordinates to WASM.
+**Code.** `src/cr3bp.c#cr3bp_lagrange` (100 bisections); `src/lagrange.c#lab_point_x` / `lab_point_y` / `lab_point_c` expose the same coordinates to WASM.
 
 **Tests.** `test_equilibria`: six mass fractions, independent roots within 1e−6, zero acceleration below 1e−10, equilateral distances and $C_{L4,L5}=3-\mu+\mu^2$. [lagrange.csv](figures/lagrange.csv) records the measured positions, C and force residual.
 
@@ -94,7 +94,7 @@ flowchart TD
 
 ![C above and below the actual L1 saddle](figures/zero-velocity.svg)
 
-**Code.** `src/cr3bp.c#cr3bp_contours`; `src/lagrange.c#lab_allowed`, `src/lagrange.c#lab_segment`.
+**Code.** `src/cr3bp.c#cr3bp_contours`; `src/lagrange.c#lab_allowed`, `src/lagrange.c#lab_segment_x1` (and `_y1`, `_x2`, `_y2`).
 
 **Tests.** `test_contours` tests the two sides of the L1 inequality, finiteness, required-count and bounded-buffer behavior. At the default mass fraction, 1,100/1,096 segments describe the closed/open levels; their maximum endpoint residual is 7.55e−15. Both native and WASM use these C intersections.
 
@@ -110,7 +110,7 @@ flowchart TD
 flowchart LR
     A["cr3bp.c: forces, RK4, roots, C, contours"] --> B["lagrange.c: bounded lab controller"]
     B --> C["Terminal: CSV and SVG"]
-    B --> D["WASM: lab_value / lab_point / lab_segment"]
+    B --> D["WASM: lab_value / lab_point_x.. / lab_segment_x1.."]
     D --> E["Browser: plots, telemetry, controls"]
     E --> F["Pause on blur; reset; comparison labels"]
 ```

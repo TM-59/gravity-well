@@ -25,6 +25,8 @@ C11 + libm の軌道力学シミュレーター。既存の端末表示・GIF・
 - ゲーム本体に乱数は無い。bench の自動操縦の種は `tests/voyage_policy.h` の subSeed(splitmix64)で作る。
 - 実画面は `docs/images/`。原画は `assets/art/`、採否・生成指示は `docs/art-direction.md`。
 - 公開リポジトリ。コミット・PR に生成 AI の署名を入れない。
+- 整形・lint・型検査は `make fmt` / `make check-style`(clang-format・clang-tidy・-Werror、Ruff・mypy strict、Biome・tsc --checkJs。版は uv.lock と package-lock.json)。抑制コメント・除外は置かない。C ライブラリのヘッダーが既定の場所に無い端末は `TIDY_EXTRA="-isystem <dir>"`。
+  Biome の対象外は書いていない生成物だけ: `docs/narrative/{play-order,ablation,tension}.json`(`make story`)と `docs/theory/figures/values.md`(`make theory-figs`)。Ruff で外すのは両立しない規則の片方だけ(pyproject.toml に相手と理由)。
 
 ## M4 の独自原画の例外
 
