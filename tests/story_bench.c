@@ -47,13 +47,13 @@ static void play_row(char *buf, size_t cap, int i, const RunResult *r)
             first = 0;
         }
     }
-    snprintf(buf + n, cap - n, "]}");
+    (void)snprintf(buf + n, cap - n, "]}");
 }
 
 static void ablation_row(char *buf, size_t cap, int i, const RunResult *r)
 {
-    snprintf(buf, cap, "{\"seed\": \"%d\", \"seconds\": %.2f, \"red\": %.2f, \"tows\": %d}", i,
-             r->seconds, r->red, r->tows);
+    (void)snprintf(buf, cap, "{\"seed\": \"%d\", \"seconds\": %.2f, \"red\": %.2f, \"tows\": %d}",
+                   i, r->seconds, r->red, r->tows);
 }
 
 static void tension_row(char *buf, size_t cap, int i, int run, const RunResult *r)
@@ -72,7 +72,7 @@ static void tension_row(char *buf, size_t cap, int i, int run, const RunResult *
     for (int k = 0; k < V_LEGS; k++) {
         n += (size_t)snprintf(buf + n, cap - n, "%s%d", k ? ", " : "", r->failure[k]);
     }
-    snprintf(buf + n, cap - n, "]}");
+    (void)snprintf(buf + n, cap - n, "]}");
 }
 
 /* ------------------------------------------------------------------ arms */
@@ -107,13 +107,23 @@ static Job tension_job(int i, int run)
 static FILE *open_out(const char *dir, const char *name)
 {
     char path[512];
-    snprintf(path, sizeof path, "%s/%s", dir, name);
+    (void)snprintf(path, sizeof path, "%s/%s", dir, name);
     FILE *f = fopen(path, "w");
     if (!f) {
-        fprintf(stderr, "cannot write %s\n", path);
+        (void)fprintf(stderr, "cannot write %s\n", path);
         exit(1);
     }
     return f;
+}
+
+/* A short or failed write would leave a truncated table; stop with an error instead. */
+static void close_out(FILE *f)
+{
+    int bad = ferror(f) != 0;
+    if (fclose(f) != 0 || bad) {
+        (void)fprintf(stderr, "write error\n");
+        exit(1);
+    }
 }
 
 static void write_rows(FILE *f, const char *indent, const RunResult *res, int arm)
@@ -121,17 +131,17 @@ static void write_rows(FILE *f, const char *indent, const RunResult *res, int ar
     char row[256];
     for (int i = 0; i < ABLATION_SEEDS; i++) {
         ablation_row(row, sizeof row, i, &res[arm * ABLATION_SEEDS + i]);
-        fprintf(f, "%s%s%s\n", indent, row, i + 1 < ABLATION_SEEDS ? "," : "");
+        (void)fprintf(f, "%s%s%s\n", indent, row, i + 1 < ABLATION_SEEDS ? "," : "");
     }
 }
 
 static void write_arm_pair(FILE *f, const char *name, const RunResult *res, int off, int last)
 {
-    fprintf(f, "    \"%s\": {\n      \"on\": [\n", name);
+    (void)fprintf(f, "    \"%s\": {\n      \"on\": [\n", name);
     write_rows(f, "        ", res, ARM_ON);
-    fprintf(f, "      ],\n      \"off\": [\n");
+    (void)fprintf(f, "      ],\n      \"off\": [\n");
     write_rows(f, "        ", res, off);
-    fprintf(f, "      ]\n    }%s\n", last ? "" : ",");
+    (void)fprintf(f, "      ]\n    }%s\n", last ? "" : ",");
 }
 
 static const char *GEN = "tests/story_bench.c (make story)";
@@ -169,82 +179,86 @@ static int write_all(const char *dir)
     char row[1024];
 
     FILE *f = open_out(dir, "play-order.json");
-    fprintf(f,
-            "{\n  \"version\": 1,\n  \"generator\": \"%s\",\n  \"note\": \"Scenes open at fixed "
-            "progress points: the start of the run and the end of a leg. "
-            "route 0 = the near buoy, 1 = the far buoy; ilse 0 = turn back for her pod, 1 = hold "
-            "the heading. quiet lists the heavy scenes "
-            "shown with no 'leg cleared' banner raised before the next frame of flight. Do not "
-            "edit by hand.\",\n  \"seeds\": [\n",
-            GEN);
+    (void)fprintf(
+        f,
+        "{\n  \"version\": 1,\n  \"generator\": \"%s\",\n  \"note\": \"Scenes open at fixed "
+        "progress points: the start of the run and the end of a leg. "
+        "route 0 = the near buoy, 1 = the far buoy; ilse 0 = turn back for her pod, 1 = hold "
+        "the heading. quiet lists the heavy scenes "
+        "shown with no 'leg cleared' banner raised before the next frame of flight. Do not "
+        "edit by hand.\",\n  \"seeds\": [\n",
+        GEN);
     for (int i = 0; i < np; i++) {
         play_row(row, sizeof row, i, &res[i]);
-        fprintf(f, "    %s%s\n", row, i + 1 < np ? "," : "");
+        (void)fprintf(f, "    %s%s\n", row, i + 1 < np ? "," : "");
     }
-    fprintf(f, "  ]\n}\n");
-    fclose(f);
+    (void)fprintf(f, "  ]\n}\n");
+    close_out(f);
 
     const RunResult *ab = res + np;
     f = open_out(dir, "ablation.json");
-    fprintf(f,
-            "{\n  \"version\": 1,\n  \"generator\": \"%s\",\n  \"note\": \"Same %d seeds in every "
-            "arm. on = all story numbers, the far buoy and holding the heading; "
-            "off = scenes still open but every story number is neutral; beats = only that scene's "
-            "numbers removed; choices = one choice fixed per path, "
-            "the other at its default. Do not edit by hand.\",\n",
-            GEN, ABLATION_SEEDS);
-    fprintf(f, "  \"metrics\": {\n"
-               "    \"seconds\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": "
-               "\"screen\", \"label\": \"T on the mission clock at Lamp Quay; every T is flown "
-               "(the pod's wait and a drifting tug included, no flat additions)\"},\n"
-               "    \"red\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", "
-               "\"label\": \"T flown with the tank gauge in the red (below 0.25); an empty tank "
-               "stops the engine until help comes\"},\n"
-               "    \"tows\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", "
-               "\"label\": \"failures on the way: a dry tank (a drone drifts out to you, or after "
-               "the silence Lamp Quay's tug drags you back to the start of the leg), a tow from "
-               "too close to the star or too far, or a glancing grapple at the pod\"}\n"
-               "  },\n  \"effects\": {\n    \"on\": [\n");
+    (void)fprintf(
+        f,
+        "{\n  \"version\": 1,\n  \"generator\": \"%s\",\n  \"note\": \"Same %d seeds in every "
+        "arm. on = all story numbers, the far buoy and holding the heading; "
+        "off = scenes still open but every story number is neutral; beats = only that scene's "
+        "numbers removed; choices = one choice fixed per path, "
+        "the other at its default. Do not edit by hand.\",\n",
+        GEN, ABLATION_SEEDS);
+    (void)fprintf(
+        f, "  \"metrics\": {\n"
+           "    \"seconds\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": "
+           "\"screen\", \"label\": \"T on the mission clock at Lamp Quay; every T is flown "
+           "(the pod's wait and a drifting tug included, no flat additions)\"},\n"
+           "    \"red\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", "
+           "\"label\": \"T flown with the tank gauge in the red (below 0.25); an empty tank "
+           "stops the engine until help comes\"},\n"
+           "    \"tows\": {\"better\": \"lower\", \"kind\": \"outcome\", \"felt\": \"screen\", "
+           "\"label\": \"failures on the way: a dry tank (a drone drifts out to you, or after "
+           "the silence Lamp Quay's tug drags you back to the start of the leg), a tow from "
+           "too close to the star or too far, or a glancing grapple at the pod\"}\n"
+           "  },\n  \"effects\": {\n    \"on\": [\n");
     write_rows(f, "      ", ab, ARM_ON);
-    fprintf(f, "    ],\n    \"off\": [\n");
+    (void)fprintf(f, "    ],\n    \"off\": [\n");
     write_rows(f, "      ", ab, ARM_OFF);
-    fprintf(f, "    ]\n  },\n  \"beats\": {\n");
+    (void)fprintf(f, "    ]\n  },\n  \"beats\": {\n");
     write_arm_pair(f, "dock", ab, ARM_DOCK, 0);
     write_arm_pair(f, "beacon", ab, ARM_BEACON, 0);
     write_arm_pair(f, "flare", ab, ARM_FLARE, 0);
     write_arm_pair(f, "silence", ab, ARM_SILENCE, 1);
-    fprintf(f, "  },\n  \"choices\": {\n    \"route\": {\"paths\": {\n      \"0\": [\n");
+    (void)fprintf(f, "  },\n  \"choices\": {\n    \"route\": {\"paths\": {\n      \"0\": [\n");
     write_rows(f, "        ", ab, ARM_NEAR);
-    fprintf(f, "      ],\n      \"1\": [\n");
+    (void)fprintf(f, "      ],\n      \"1\": [\n");
     write_rows(f, "        ", ab, ARM_ON);
-    fprintf(f, "      ]\n    }},\n    \"ilse\": {\"paths\": {\n      \"0\": [\n");
+    (void)fprintf(f, "      ]\n    }},\n    \"ilse\": {\"paths\": {\n      \"0\": [\n");
     write_rows(f, "        ", ab, ARM_TURN);
-    fprintf(f, "      ],\n      \"1\": [\n");
+    (void)fprintf(f, "      ],\n      \"1\": [\n");
     write_rows(f, "        ", ab, ARM_ON);
-    fprintf(f, "      ]\n    }}\n  }\n}\n");
-    fclose(f);
+    (void)fprintf(f, "      ]\n    }}\n  }\n}\n");
+    close_out(f);
 
     const RunResult *tn = res + np + na;
     f = open_out(dir, "tension.json");
-    fprintf(f, "{\n  \"version\": 1,\n  \"generator\": \"%s\",\n  \"policy\": \"%s\",\n", GEN,
-            POLICY);
-    fprintf(f,
-            "  \"crisis\": \"the tank gauge in the red (below 0.25) at any moment in the leg, or a "
-            "failure (a failure counts as a crisis)\",\n"
-            "  \"failure\": \"the tank ran dry and a drone or Lamp Quay's tug had to come, the tug "
-            "fell within 0.35 L of the star or wandered "
-            "45 T, or the pod's grapple glanced off\",\n"
-            "  \"segments\": [\"leaving the dock\", \"the climb to the buoy\", \"down below the "
-            "flare front\", \"the flare\", \"the last leg\"],\n"
-            "  \"note\": \"%d seeds x %d runs; every run has its own stirred seed; the path comes "
-            "from the run number.\",\n  \"seeds\": [\n",
-            TENSION_SEEDS, TENSION_RUNS);
+    (void)fprintf(f, "{\n  \"version\": 1,\n  \"generator\": \"%s\",\n  \"policy\": \"%s\",\n", GEN,
+                  POLICY);
+    (void)fprintf(
+        f,
+        "  \"crisis\": \"the tank gauge in the red (below 0.25) at any moment in the leg, or a "
+        "failure (a failure counts as a crisis)\",\n"
+        "  \"failure\": \"the tank ran dry and a drone or Lamp Quay's tug had to come, the tug "
+        "fell within 0.35 L of the star or wandered "
+        "45 T, or the pod's grapple glanced off\",\n"
+        "  \"segments\": [\"leaving the dock\", \"the climb to the buoy\", \"down below the "
+        "flare front\", \"the flare\", \"the last leg\"],\n"
+        "  \"note\": \"%d seeds x %d runs; every run has its own stirred seed; the path comes "
+        "from the run number.\",\n  \"seeds\": [\n",
+        TENSION_SEEDS, TENSION_RUNS);
     for (int i = 0; i < nt; i++) {
         tension_row(row, sizeof row, i / TENSION_RUNS, i % TENSION_RUNS, &tn[i]);
-        fprintf(f, "    %s%s\n", row, i + 1 < nt ? "," : "");
+        (void)fprintf(f, "    %s%s\n", row, i + 1 < nt ? "," : "");
     }
-    fprintf(f, "  ]\n}\n");
-    fclose(f);
+    (void)fprintf(f, "  ]\n}\n");
+    close_out(f);
 
     double sec = 0;
     for (int i = 0; i < ABLATION_SEEDS; i++) {
@@ -260,21 +274,25 @@ static int write_all(const char *dir)
 static char *slurp(const char *dir, const char *name)
 {
     char path[512];
-    snprintf(path, sizeof path, "%s/%s", dir, name);
+    (void)snprintf(path, sizeof path, "%s/%s", dir, name);
     FILE *f = fopen(path, "rb");
     if (!f) {
-        fprintf(stderr, "missing %s\n", path);
+        (void)fprintf(stderr, "missing %s\n", path);
         exit(1);
     }
-    fseek(f, 0, SEEK_END);
+    if (fseek(f, 0, SEEK_END) != 0) {
+        exit(1);
+    }
     long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if (size < 0 || fseek(f, 0, SEEK_SET) != 0) {
+        exit(1);
+    }
     char *buf = malloc((size_t)size + 1);
     if (!buf || fread(buf, 1, (size_t)size, f) != (size_t)size) {
         exit(1);
     }
     buf[size] = 0;
-    fclose(f);
+    (void)fclose(f); /* read only: nothing is lost if closing fails */
     return buf;
 }
 
@@ -304,7 +322,7 @@ static int check(const char *dir)
     qsort(keys, (size_t)nk, sizeof *keys, cmp_key);
     for (int i = 1; i < nk; i++) {
         if (keys[i] == keys[i - 1]) {
-            fputs("[seed] duplicate run key\n", stderr);
+            (void)fputs("[seed] duplicate run key\n", stderr);
             failures++;
         }
     }
@@ -347,8 +365,8 @@ static int check(const char *dir)
             found++;
         }
         if (found != copies[i]) {
-            fprintf(stderr, "[bench] %s.json does not match the code (%d of %d copies): %s\n", file,
-                    found, copies[i], row);
+            (void)fprintf(stderr, "[bench] %s.json does not match the code (%d of %d copies): %s\n",
+                          file, found, copies[i], row);
             failures++;
         }
     }
@@ -356,8 +374,8 @@ static int check(const char *dir)
     free(abl);
     free(ten);
     if (failures) {
-        fprintf(stderr, "story bench check: %d failure(s); run make story to regenerate\n",
-                failures);
+        (void)fprintf(stderr, "story bench check: %d failure(s); run make story to regenerate\n",
+                      failures);
         return 1;
     }
     puts("story bench check: 8 re-run rows match docs/narrative; all run seeds distinct");
@@ -372,6 +390,6 @@ int main(int argc, char **argv)
     if (argc == 2) {
         return write_all(argv[1]);
     }
-    fputs("usage: story_bench <dir> | story_bench --check <dir>\n", stderr);
+    (void)fputs("usage: story_bench <dir> | story_bench --check <dir>\n", stderr);
     return 2;
 }

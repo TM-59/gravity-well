@@ -52,7 +52,7 @@ static char *slurp(const char *path)
     assert(f);
     char *buf = text[slot++ & 1];
     size_t len = fread(buf, 1, sizeof text[0] - 1, f);
-    fclose(f);
+    (void)fclose(f); /* read only */
     buf[len] = 0;
     return buf;
 }
@@ -76,7 +76,7 @@ static double sign_p(int k, int n)
 static void read_beat(const char *text, const char *beat, double v[2][ABLATION_SEEDS][3])
 {
     char head[64];
-    snprintf(head, sizeof head, "\"%s\": {", beat);
+    (void)snprintf(head, sizeof head, "\"%s\": {", beat);
     const char *at = strstr(strstr(text, "\"beats\": {"), head);
     assert(at);
     for (int arm = 0; arm < 2; arm++) {
@@ -100,7 +100,7 @@ static void check_choice(const char *text, const char *head)
     assert(at);
     for (int path = 0; path < 2; path++) {
         char key[16];
-        snprintf(key, sizeof key, "\"%d\": [", path);
+        (void)snprintf(key, sizeof key, "\"%d\": [", path);
         at = strstr(at, key);
         assert(at);
         for (int i = 0; i < ABLATION_SEEDS; i++) {

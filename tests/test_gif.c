@@ -28,7 +28,7 @@ static int decode_first(const char *path, int *w, int *h, unsigned char *out, in
     }
     static unsigned char file[1 << 22];
     size_t len = fread(file, 1, sizeof file, f);
-    fclose(f);
+    (void)fclose(f); /* read only */
     if (len < 13 || memcmp(file, "GIF89a", 6) != 0) {
         return -1;
     }
@@ -163,10 +163,13 @@ static void test_flat_frames_compress_well(void)
     memset(px, 2, sizeof px);
     write_one("/tmp/gif_flat.gif", 400, 200, px);
     FILE *f = fopen("/tmp/gif_flat.gif", "rb");
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fclose(f);
-    CHECK(size < 2000, "a flat 400x200 frame should be tiny, got %ld bytes", size);
+    CHECK(f != NULL, "cannot reopen the flat frame");
+    if (!f) {
+        return;
+    }
+    long size = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
+    (void)fclose(f); /* read only */
+    CHECK(size >= 0 && size < 2000, "a flat 400x200 frame should be tiny, got %ld bytes", size);
 }
 
 static void test_animation_structure(void)
@@ -185,7 +188,7 @@ static void test_animation_structure(void)
     FILE *f = fopen("/tmp/gif_anim.gif", "rb");
     static unsigned char file[1 << 16];
     size_t len = fread(file, 1, sizeof file, f);
-    fclose(f);
+    (void)fclose(f); /* read only */
     CHECK(memcmp(file, "GIF89a", 6) == 0, "missing header");
     CHECK(file[len - 1] == 0x3B, "missing trailer");
     int frames = 0, loops = 0;

@@ -217,11 +217,11 @@ double lab_measured_drift(double mu, double *largest)
 /* One square panel of an SVG: axes box, caption, and a polyline in data units. */
 static void panel_open(FILE *f, double ox, double oy, double size, const char *caption)
 {
-    fprintf(f,
-            "<rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" fill=\"#ffffff\" "
-            "stroke=\"#8a99a8\"/>"
-            "<text x=\"%.1f\" y=\"%.1f\">%s</text>",
-            ox, oy, size, size, ox, oy - 10, caption);
+    (void)fprintf(f,
+                  "<rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" fill=\"#ffffff\" "
+                  "stroke=\"#8a99a8\"/>"
+                  "<text x=\"%.1f\" y=\"%.1f\">%s</text>",
+                  ox, oy, size, size, ox, oy - 10, caption);
 }
 
 static int stability_output(const char *dir)
@@ -230,40 +230,41 @@ static int stability_output(const char *dir)
     double mu = cr3bp_mu(), g, w[2];
     FILE *f;
     /* 1. table: linear theory against integration */
-    snprintf(path, sizeof path, "%s/stability.csv", dir);
+    (void)snprintf(path, sizeof path, "%s/stability.csv", dir);
     f = fopen(path, "w");
     if (!f) {
         return 1;
     }
-    fputs("quantity,theory,measured,relative_difference\n", f);
+    (void)fputs("quantity,theory,measured,relative_difference\n", f);
     for (int i = 1; i <= 3; i++) {
         cr3bp_modes(mu, i, &g, w);
         double m = lab_measured_growth(mu, i);
-        fprintf(f, "L%d growth rate [1/T] (mu=1/101),%.9f,%.9f,%.2e\n", i, g, m, fabs(m / g - 1));
+        (void)fprintf(f, "L%d growth rate [1/T] (mu=1/101),%.9f,%.9f,%.2e\n", i, g, m,
+                      fabs(m / g - 1));
     }
     cr3bp_modes(mu, 4, &g, w);
     double period[2];
     for (int k = 0; k < 2; k++) {
         period[k] = lab_measured_period(mu, k + 1);
-        fprintf(f, "L4 %s period [T] (mu=1/101),%.9f,%.9f,%.2e\n", k ? "long" : "short",
-                2 * PI / w[k], period[k], fabs(period[k] * w[k] / (2 * PI) - 1));
+        (void)fprintf(f, "L4 %s period [T] (mu=1/101),%.9f,%.9f,%.2e\n", k ? "long" : "short",
+                      2 * PI / w[k], period[k], fabs(period[k] * w[k] / (2 * PI) - 1));
     }
     double top3, top5, slope5 = lab_measured_drift(0.05, &top5),
                        slope3 = lab_measured_drift(0.03, &top3), g5, w5[2];
     cr3bp_modes(0.05, 4, &g5, w5);
-    fprintf(f, "L4 growth rate [1/T] (mu=0.05 above Routh),%.9f,%.9f,%.2e\n", g5, slope5,
-            fabs(slope5 / g5 - 1));
-    fprintf(f, "L4 largest distance in 70 T from 1e-8 L (mu=0.03 below Routh),bounded,%.3e,\n",
-            top3);
-    fprintf(f, "L4 largest distance in 70 T from 1e-8 L (mu=0.05 above Routh),unbounded,%.3e,\n",
-            top5);
-    fprintf(f, "Routh critical mass fraction,%.12f,,\n", cr3bp_routh());
+    (void)fprintf(f, "L4 growth rate [1/T] (mu=0.05 above Routh),%.9f,%.9f,%.2e\n", g5, slope5,
+                  fabs(slope5 / g5 - 1));
+    (void)fprintf(
+        f, "L4 largest distance in 70 T from 1e-8 L (mu=0.03 below Routh),bounded,%.3e,\n", top3);
+    (void)fprintf(
+        f, "L4 largest distance in 70 T from 1e-8 L (mu=0.05 above Routh),unbounded,%.3e,\n", top5);
+    (void)fprintf(f, "Routh critical mass fraction,%.12f,,\n", cr3bp_routh());
     double hill = cbrt(mu / 3), d1 = 1 - mu - cr3bp_lagrange(mu, 1).x,
            d2 = cr3bp_lagrange(mu, 2).x - 1 + mu;
-    fprintf(f, "L1 distance from secondary [L] vs Hill radius (mu=1/101),%.9f,%.9f,%.2e\n", hill,
-            d1, fabs(d1 / hill - 1));
-    fprintf(f, "L2 distance from secondary [L] vs Hill radius (mu=1/101),%.9f,%.9f,%.2e\n", hill,
-            d2, fabs(d2 / hill - 1));
+    (void)fprintf(f, "L1 distance from secondary [L] vs Hill radius (mu=1/101),%.9f,%.9f,%.2e\n",
+                  hill, d1, fabs(d1 / hill - 1));
+    (void)fprintf(f, "L2 distance from secondary [L] vs Hill radius (mu=1/101),%.9f,%.9f,%.2e\n",
+                  hill, d2, fabs(d2 / hill - 1));
     if (fclose(f)) {
         return 1;
     }
@@ -283,7 +284,7 @@ static int stability_output(const char *dir)
     Series modes[3] = {{"short-period omega", a, "#136d88"},
                        {"long-period omega", b, "#b77d17"},
                        {"growth rate Re(lambda)", c, "#b03a48"}};
-    snprintf(path, sizeof path, "%s/l4-modes.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/l4-modes.svg", dir);
     if (svg_plot(path, "L4/L5 linear modes: frequencies merge at Routh's mu = 0.03852",
                  "mass fraction mu", "rate [1/T]", xs, M, modes, 3)) {
         return 1;
@@ -302,10 +303,10 @@ static int stability_output(const char *dir)
         }
     }
     char title[160];
-    snprintf(title, sizeof title, "L4 modes, mu = 1/101: %.4f T, %.4f T (theory %.4f, %.4f)",
-             period[0], period[1], 2 * PI / w[0], 2 * PI / w[1]);
+    (void)snprintf(title, sizeof title, "L4 modes, mu = 1/101: %.4f T, %.4f T (theory %.4f, %.4f)",
+                   period[0], period[1], 2 * PI / w[0], 2 * PI / w[1]);
     Series lib[2] = {{"short-period mode", a, "#136d88"}, {"long-period mode", b, "#b77d17"}};
-    snprintf(path, sizeof path, "%s/l4-libration.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/l4-libration.svg", dir);
     if (svg_plot(path, title, "t [T]", "eta = y - y(L4) [1e-6 L]", xs, N, lib, 2)) {
         return 1;
     }
@@ -325,12 +326,12 @@ static int stability_output(const char *dir)
             }
         }
     }
-    snprintf(title, sizeof title, "L4 nudged 1e-8 L: slope %.4f /T at mu = 0.05 (theory %.4f)",
-             slope5, g5);
+    (void)snprintf(title, sizeof title,
+                   "L4 nudged 1e-8 L: slope %.4f /T at mu = 0.05 (theory %.4f)", slope5, g5);
     Series crit[3] = {{"mu = 0.03 (stable)", a, "#136d88"},
                       {"mu = 0.05 (unstable)", b, "#b03a48"},
                       {"theory slope, mu = 0.05", c, "#8a99a8"}};
-    snprintf(path, sizeof path, "%s/l4-routh.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/l4-routh.svg", dir);
     if (svg_plot(path, title, "t [T]", "log10 distance from L4 [L]", xs, N, crit, 3)) {
         return 1;
     }
@@ -349,7 +350,7 @@ static int stability_output(const char *dir)
         }
     }
     Series saddle[3] = {{"L1", l[0], "#136d88"}, {"L2", l[1], "#b77d17"}, {"L3", l[2], "#594790"}};
-    snprintf(path, sizeof path, "%s/collinear-growth.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/collinear-growth.svg", dir);
     if (svg_plot(path, "L1-L3 are saddles: growing mode, mu = 1/101", "t [T]",
                  "log10 distance from the point [L]", xs, K, saddle, 3)) {
         return 1;
@@ -366,7 +367,7 @@ static int stability_output(const char *dir)
     Series hills[3] = {{"Hill radius", a, "#8a99a8"},
                        {"secondary to L1", b, "#136d88"},
                        {"secondary to L2", c, "#b77d17"}};
-    snprintf(path, sizeof path, "%s/hill.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/hill.svg", dir);
     if (svg_plot(path, "L1 and L2 straddle the Hill radius (mu/3)^(1/3)", "mass fraction mu",
                  "distance from the secondary [L]", xs, M, hills, 3)) {
         return 1;
@@ -394,46 +395,50 @@ static int stability_output(const char *dir)
     double span = 1.15 * fmax(hi[0] - lo[0], hi[1] - lo[1]), cx = (lo[0] + hi[0]) / 2,
            cy = (lo[1] + hi[1]) / 2;
     Ship l4 = cr3bp_lagrange(mu, 4);
-    snprintf(path, sizeof path, "%s/frames.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/frames.svg", dir);
     f = fopen(path, "w");
     if (!f) {
         return 1;
     }
-    fputs("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1000\" height=\"520\" viewBox=\"0 0 "
-          "1000 520\"><rect width=\"1000\" height=\"520\" fill=\"#f4f8fb\"/><g "
-          "font-family=\"sans-serif\" font-size=\"15\" fill=\"#142f43\">",
-          f);
-    fputs("<text x=\"25\" y=\"28\">One C trajectory (L4 + 0.01 L in x, 60 T, mu = 1/101) drawn in "
-          "two frames</text>",
-          f);
+    (void)fputs(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1000\" height=\"520\" viewBox=\"0 0 "
+        "1000 520\"><rect width=\"1000\" height=\"520\" fill=\"#f4f8fb\"/><g "
+        "font-family=\"sans-serif\" font-size=\"15\" fill=\"#142f43\">",
+        f);
+    (void)fputs(
+        "<text x=\"25\" y=\"28\">One C trajectory (L4 + 0.01 L in x, 60 T, mu = 1/101) drawn in "
+        "two frames</text>",
+        f);
     char cap[160];
-    snprintf(cap, sizeof cap, "Rotating frame, window %.3f L wide around L4 (+)", span);
+    (void)snprintf(cap, sizeof cap, "Rotating frame, window %.3f L wide around L4 (+)", span);
     panel_open(f, 60, 70, 400, cap);
-    fputs("<path fill=\"none\" stroke=\"#b77d17\" stroke-width=\"1.4\" d=\"", f);
+    (void)fputs("<path fill=\"none\" stroke=\"#b77d17\" stroke-width=\"1.4\" d=\"", f);
     for (int i = 0; i < P; i++) {
-        fprintf(f, "%c%.2f %.2f", i ? 'L' : 'M', 260 + (rx[i] - cx) / span * 400,
-                270 - (ry[i] - cy) / span * 400);
+        (void)fprintf(f, "%c%.2f %.2f", i ? 'L' : 'M', 260 + (rx[i] - cx) / span * 400,
+                      270 - (ry[i] - cy) / span * 400);
     }
-    fprintf(f, "\"/><path stroke=\"#142f43\" d=\"M%.2f %.2fh12m-6 -6v12\"/>",
-            254 + (l4.x - cx) / span * 400, 270 - (l4.y - cy) / span * 400);
+    (void)fprintf(f, "\"/><path stroke=\"#142f43\" d=\"M%.2f %.2fh12m-6 -6v12\"/>",
+                  254 + (l4.x - cx) / span * 400, 270 - (l4.y - cy) / span * 400);
     panel_open(f, 540, 70, 400, "Inertial frame, window 2.6 L wide");
-    fprintf(f,
-            "<circle cx=\"740\" cy=\"270\" r=\"%.2f\" fill=\"none\" stroke=\"#594790\" "
-            "stroke-dasharray=\"4 4\"/>",
-            (1 - mu) * 400 / 2.6);
-    fprintf(f, "<circle cx=\"740\" cy=\"270\" r=\"%.2f\" fill=\"none\" stroke=\"#b77d17\"/>",
-            fmax(1.5, mu * 400 / 2.6));
-    fputs("<path fill=\"none\" stroke=\"#b77d17\" stroke-width=\"1.2\" d=\"", f);
+    (void)fprintf(f,
+                  "<circle cx=\"740\" cy=\"270\" r=\"%.2f\" fill=\"none\" stroke=\"#594790\" "
+                  "stroke-dasharray=\"4 4\"/>",
+                  (1 - mu) * 400 / 2.6);
+    (void)fprintf(f, "<circle cx=\"740\" cy=\"270\" r=\"%.2f\" fill=\"none\" stroke=\"#b77d17\"/>",
+                  fmax(1.5, mu * 400 / 2.6));
+    (void)fputs("<path fill=\"none\" stroke=\"#b77d17\" stroke-width=\"1.2\" d=\"", f);
     for (int i = 0; i < P; i++) {
-        fprintf(f, "%c%.2f %.2f", i ? 'L' : 'M', 740 + ix[i] / 2.6 * 400, 270 - iy[i] / 2.6 * 400);
+        (void)fprintf(f, "%c%.2f %.2f", i ? 'L' : 'M', 740 + ix[i] / 2.6 * 400,
+                      270 - iy[i] / 2.6 * 400);
     }
-    fputs("\"/>", f);
-    fprintf(f, "<text x=\"60\" y=\"500\">Rotating x, y in L. The loop is %.4f L by %.4f L.</text>",
-            hi[0] - lo[0], hi[1] - lo[1]);
-    fprintf(f,
-            "<text x=\"540\" y=\"500\">Dashed: secondary's orbit. Same path: %.2f "
-            "turns.</text></g></svg>\n",
-            time_now / (2 * PI));
+    (void)fputs("\"/>", f);
+    (void)fprintf(
+        f, "<text x=\"60\" y=\"500\">Rotating x, y in L. The loop is %.4f L by %.4f L.</text>",
+        hi[0] - lo[0], hi[1] - lo[1]);
+    (void)fprintf(f,
+                  "<text x=\"540\" y=\"500\">Dashed: secondary's orbit. Same path: %.2f "
+                  "turns.</text></g></svg>\n",
+                  time_now / (2 * PI));
     if (fclose(f)) {
         return 1;
     }
@@ -446,18 +451,18 @@ int lagrange_output(const char *dir)
 {
     char path[1024];
     lab_set_mu(0);
-    snprintf(path, sizeof path, "%s/lagrange.csv", dir);
+    (void)snprintf(path, sizeof path, "%s/lagrange.csv", dir);
     FILE *f = fopen(path, "w");
     if (!f) {
         return 1;
     }
-    fputs("point,x,y,C,acceleration_residual\n", f);
+    (void)fputs("point,x,y,C,acceleration_residual\n", f);
     for (int i = 1; i <= 5; i++) {
         Ship p = cr3bp_lagrange(cr3bp_mu(), i);
         double ax, ay;
         cr3bp_acceleration(cr3bp_mu(), &p, &ax, &ay);
-        fprintf(f, "L%d,%.15g,%.15g,%.15g,%.6g\n", i, p.x, p.y, cr3bp_jacobi(cr3bp_mu(), &p),
-                hypot(ax, ay));
+        (void)fprintf(f, "L%d,%.15g,%.15g,%.15g,%.6g\n", i, p.x, p.y, cr3bp_jacobi(cr3bp_mu(), &p),
+                      hypot(ax, ay));
     }
     if (fclose(f)) {
         return 1;
@@ -465,17 +470,18 @@ int lagrange_output(const char *dir)
     lab_reset(0, 0);
     enum { N = 1501 };
     static float tt[N], drift[N];
-    snprintf(path, sizeof path, "%s/jacobi.csv", dir);
+    (void)snprintf(path, sizeof path, "%s/jacobi.csv", dir);
     f = fopen(path, "w");
     if (!f) {
         return 1;
     }
-    fputs("t,x,y,vx,vy,C,C_minus_C0\n", f);
+    (void)fputs("t,x,y,vx,vy,C,C_minus_C0\n", f);
     for (int i = 0; i < N; i++) {
         tt[i] = (float)time_now;
         drift[i] = (float)(cr3bp_jacobi(cr3bp_mu(), &ship) - c0);
-        fprintf(f, "%.8f,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g\n", time_now, ship.x, ship.y, ship.vx,
-                ship.vy, cr3bp_jacobi(cr3bp_mu(), &ship), cr3bp_jacobi(cr3bp_mu(), &ship) - c0);
+        (void)fprintf(f, "%.8f,%.15g,%.15g,%.15g,%.15g,%.15g,%.15g\n", time_now, ship.x, ship.y,
+                      ship.vx, ship.vy, cr3bp_jacobi(cr3bp_mu(), &ship),
+                      cr3bp_jacobi(cr3bp_mu(), &ship) - c0);
         if (i < N - 1) {
             lab_tick(1);
         }
@@ -483,7 +489,7 @@ int lagrange_output(const char *dir)
     if (fclose(f)) {
         return 1;
     }
-    snprintf(path, sizeof path, "%s/jacobi.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/jacobi.svg", dir);
     Series series = {"C - C0", drift, "#136d88"};
     if (svg_plot(path, "Jacobi conservation: displaced L4, RK4 dt=0.0025", "t [T]",
                  "C - C0 [L^2/T^2]", tt, N, &series, 1)) {
@@ -492,12 +498,12 @@ int lagrange_output(const char *dir)
     printf("CR3BP mu %.12g: L4 60 T, max |C-C0| %.6g\n", cr3bp_mu(), worst);
     /* Both topology comparisons are evaluated by the same C contour generator
      * used in the browser; the default particle trajectory is a separate inset. */
-    snprintf(path, sizeof path, "%s/zero-velocity.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/zero-velocity.svg", dir);
     f = fopen(path, "w");
     if (!f) {
         return 1;
     }
-    fputs(
+    (void)fputs(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1000\" height=\"550\" viewBox=\"0 0 "
         "1000 550\"><rect width=\"1000\" height=\"550\" fill=\"#f4f8fb\"/><g "
         "font-family=\"sans-serif\" font-size=\"15\" fill=\"#142f43\"><text x=\"25\" "
@@ -506,43 +512,45 @@ int lagrange_output(const char *dir)
     for (int pane = 0; pane < 2; pane++) {
         lab_reset(0, pane + 1);
         double ox = 250 + 500 * pane, oy = 285, sc = 125;
-        fprintf(f, "<text x=\"%d\" y=\"58\">%s: C = %.9f</text>", 30 + 500 * pane,
-                pane ? "Open L1 neck" : "Closed L1 neck", level_c);
+        (void)fprintf(f, "<text x=\"%d\" y=\"58\">%s: C = %.9f</text>", 30 + 500 * pane,
+                      pane ? "Open L1 neck" : "Closed L1 neck", level_c);
         for (int j = 0; j < 100; j++) {
             for (int i = 0; i < 100; i++) {
                 double x = -1.7 + (i + 0.5) * 3.4 / 100, y = -1.7 + (j + 0.5) * 3.4 / 100;
                 if (lab_allowed(x, y) < 0) {
-                    fprintf(f,
-                            "<rect x=\"%.2f\" y=\"%.2f\" width=\"4.3\" height=\"4.3\" "
-                            "fill=\"#bdcbd9\"/>",
-                            ox + x * sc - 2.13, oy - y * sc - 2.13);
+                    (void)fprintf(f,
+                                  "<rect x=\"%.2f\" y=\"%.2f\" width=\"4.3\" height=\"4.3\" "
+                                  "fill=\"#bdcbd9\"/>",
+                                  ox + x * sc - 2.13, oy - y * sc - 2.13);
                 }
             }
         }
-        fputs("<g stroke=\"#167b8d\" stroke-width=\"1.4\">", f);
+        (void)fputs("<g stroke=\"#167b8d\" stroke-width=\"1.4\">", f);
         for (size_t i = 0; i < segments && i < CAP; i++) {
             ZeroSegment s = contour[i];
-            fprintf(f, "<path d=\"M%.3f %.3fL%.3f %.3f\"/>", ox + s.x1 * sc, oy - s.y1 * sc,
-                    ox + s.x2 * sc, oy - s.y2 * sc);
+            (void)fprintf(f, "<path d=\"M%.3f %.3fL%.3f %.3f\"/>", ox + s.x1 * sc, oy - s.y1 * sc,
+                          ox + s.x2 * sc, oy - s.y2 * sc);
         }
-        fputs("</g>", f);
+        (void)fputs("</g>", f);
         for (int i = 1; i <= 5; i++) {
             Ship p = cr3bp_lagrange(cr3bp_mu(), i);
-            fprintf(
+            (void)fprintf(
                 f,
                 "<circle cx=\"%.3f\" cy=\"%.3f\" r=\"3\"/><text x=\"%.3f\" y=\"%.3f\">L%d</text>",
                 ox + p.x * sc, oy - p.y * sc, ox + p.x * sc + 5, oy - p.y * sc - 7, i);
         }
-        fprintf(f,
-                "<circle cx=\"%.3f\" cy=\"285\" r=\"6\" fill=\"#b77d17\"/><circle cx=\"%.3f\" "
-                "cy=\"285\" r=\"4\" fill=\"#594790\"/>",
-                ox - cr3bp_mu() * sc, ox + (1 - cr3bp_mu()) * sc);
-        fprintf(f, "<text x=\"%d\" y=\"508\">x, y in L; grey: forbidden (2 Omega &lt; C)</text>",
-                25 + 500 * pane);
+        (void)fprintf(
+            f,
+            "<circle cx=\"%.3f\" cy=\"285\" r=\"6\" fill=\"#b77d17\"/><circle cx=\"%.3f\" "
+            "cy=\"285\" r=\"4\" fill=\"#594790\"/>",
+            ox - cr3bp_mu() * sc, ox + (1 - cr3bp_mu()) * sc);
+        (void)fprintf(f,
+                      "<text x=\"%d\" y=\"508\">x, y in L; grey: forbidden (2 Omega &lt; C)</text>",
+                      25 + 500 * pane);
     }
-    fputs("<text x=\"25\" y=\"535\">Each curve has v_rot = 0; open geometry alone does not "
-          "guarantee a transit.</text></g></svg>\n",
-          f);
+    (void)fputs("<text x=\"25\" y=\"535\">Each curve has v_rot = 0; open geometry alone does not "
+                "guarantee a transit.</text></g></svg>\n",
+                f);
     if (fclose(f)) {
         return 1;
     }

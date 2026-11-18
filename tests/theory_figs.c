@@ -22,7 +22,7 @@ static float xs[MAXN], ya[MAXN], yb[MAXN], yc[MAXN];
 static const char *path(const char *name)
 {
     static char buf[640];
-    snprintf(buf, sizeof buf, "%s/%s", dir, name);
+    (void)snprintf(buf, sizeof buf, "%s/%s", dir, name);
     return buf;
 }
 
@@ -30,7 +30,7 @@ static void plot(const char *name, const char *title, const char *xl, const char
                  const Series *s, int ns)
 {
     if (svg_plot(path(name), title, xl, yl, xs, count, s, ns) != 0) {
-        fprintf(stderr, "cannot write %s\n", name);
+        (void)fprintf(stderr, "cannot write %s\n", name);
         exit(1);
     }
 }
@@ -40,7 +40,7 @@ static void plot(const char *name, const char *title, const char *xl, const char
 static void value(const char *id, const char *what, double measured, double theory)
 {
     double err = theory != 0.0 ? fabs(measured / theory - 1.0) : fabs(measured - theory);
-    fprintf(values, "| `%s` | %s | %.6g | %.6g | %.2e |\n", id, what, measured, theory, err);
+    (void)fprintf(values, "| `%s` | %s | %.6g | %.6g | %.2e |\n", id, what, measured, theory, err);
 }
 
 static uint64_t play_key_like(void) { return sub_seed(20261111ULL, 0, 9); }
@@ -1031,18 +1031,18 @@ static void val_runs(void)
 
 int main(int argc, char **argv)
 {
-    snprintf(dir, sizeof dir, "%s", argc > 1 ? argv[1] : "docs/theory/figures");
+    (void)snprintf(dir, sizeof dir, "%s", argc > 1 ? argv[1] : "docs/theory/figures");
     values = fopen(path("values.md"), "w");
     if (!values) {
-        fprintf(stderr, "cannot write %s/values.md\n", dir);
+        (void)fprintf(stderr, "cannot write %s/values.md\n", dir);
         return 1;
     }
-    fprintf(values,
-            "# Measured values\n\nWritten by `make theory-figs` (tests/theory_figs.c) from the "
-            "program's own functions. Do not edit by hand.\n"
-            "Units: lengths in L, times in T, with the star's GM = 1. The last column is the "
-            "relative error; where the theory column is 0 it is the absolute value.\n\n"
-            "| id | what is measured | measured | theory | error |\n|---|---|---|---|---|\n");
+    (void)fprintf(
+        values, "# Measured values\n\nWritten by `make theory-figs` (tests/theory_figs.c) from the "
+                "program's own functions. Do not edit by hand.\n"
+                "Units: lengths in L, times in T, with the star's GM = 1. The last column is the "
+                "relative error; where the theory column is 0 it is the absolute value.\n\n"
+                "| id | what is measured | measured | theory | error |\n|---|---|---|---|---|\n");
     fig_gravity();
     fig_period();
     fig_ellipse();
@@ -1061,6 +1061,9 @@ int main(int argc, char **argv)
     fig_boil();
     fig_tow();
     val_runs();
-    fclose(values);
+    int bad = ferror(values) != 0;
+    if (fclose(values) != 0 || bad) {
+        return 1;
+    }
     return 0;
 }

@@ -35,12 +35,12 @@ static int headless(const char *dir)
         return 1;
     }
     char path[512];
-    snprintf(path, sizeof path, "%s/run.csv", dir);
+    (void)snprintf(path, sizeof path, "%s/run.csv", dir);
     FILE *csv = fopen(path, "w");
     if (!csv) {
         return 1;
     }
-    fprintf(csv, "t,x,y,r,energy\n");
+    (void)fprintf(csv, "t,x,y,r,energy\n");
     for (int k = 0; t < total && i < n; k++) {
         if (!burned && t >= half) {
             double r = hypot(s.x, s.y), vc = circular_speed(&w, r), sp = hypot(s.vx, s.vy);
@@ -55,24 +55,27 @@ static int headless(const char *dir)
             ys[i] = (float)s.y;
             rr[i] = (float)hypot(s.x, s.y);
             er[i] = (float)(ship_energy(&w, &s) - e0);
-            fprintf(csv, "%.3f,%.5f,%.5f,%.5f,%.6f\n", t, s.x, s.y, rr[i], ship_energy(&w, &s));
+            (void)fprintf(csv, "%.3f,%.5f,%.5f,%.5f,%.6f\n", t, s.x, s.y, rr[i],
+                          ship_energy(&w, &s));
             i++;
         }
         orbit_step(&w, &s, t, 0.0, 0.0, dt);
         t += dt;
     }
-    fclose(csv);
-    snprintf(path, sizeof path, "%s/track.svg", dir);
+    if (fclose(csv) != 0) {
+        return 1;
+    }
+    (void)snprintf(path, sizeof path, "%s/track.svg", dir);
     Series tr[] = {{"y", ys, "#1f77b4"}};
     if (svg_plot(path, "Hohmann transfer path (y vs x)", "x", "y", xs, i, tr, 1)) {
         return 1;
     }
-    snprintf(path, sizeof path, "%s/radius.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/radius.svg", dir);
     Series ra[] = {{"r", rr, "#2ca02c"}};
     if (svg_plot(path, "Orbital radius during the transfer", "t", "r", tt, i, ra, 1)) {
         return 1;
     }
-    snprintf(path, sizeof path, "%s/energy.svg", dir);
+    (void)snprintf(path, sizeof path, "%s/energy.svg", dir);
     Series en[] = {{"E - E0 (after 2nd burn)", er, "#d62728"}};
     if (svg_plot(path, "Energy error of velocity Verlet", "t", "dE", tt, i, en, 1)) {
         return 1;
@@ -94,7 +97,7 @@ static int snapshot(void)
     if (!render_frame(&w, &s, 0.0, PI / 2.0, &s, 1, buf, sizeof buf)) {
         return 1;
     }
-    fputs(buf, stdout);
+    (void)fputs(buf, stdout);
     return 0;
 }
 
@@ -180,13 +183,13 @@ static struct termios saved;
 static void restore(void)
 {
     tcsetattr(STDIN_FILENO, TCSANOW, &saved);
-    fputs("\033[?25h", stdout);
+    (void)fputs("\033[?25h", stdout);
 }
 
 static int play(void)
 {
     if (!isatty(STDIN_FILENO)) {
-        fputs("interactive mode needs a terminal; try --snapshot\n", stderr);
+        (void)fputs("interactive mode needs a terminal; try --snapshot\n", stderr);
         return 1;
     }
     tcgetattr(STDIN_FILENO, &saved);
@@ -195,8 +198,11 @@ static int play(void)
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-    atexit(restore);
-    fputs("\033[2J\033[?25l", stdout);
+    if (atexit(restore) != 0) {
+        restore();
+        return 1;
+    }
+    (void)fputs("\033[2J\033[?25l", stdout);
 
     World w = world_default();
     Ship s = {1.0, 0.0, 0.0, circular_speed(&w, 1.0)};
@@ -246,7 +252,7 @@ static int play(void)
         printf("r %.2f  speed %.2f  energy %+.3f  moon dist %.2f  %s      \n", r, hypot(s.vx, s.vy),
                ship_energy(&w, &s), dm, burn > 0.0 ? "BURN" : "coast");
         puts("a/d turn  w burn (hold)  p pause  q quit    goal: rendezvous with the moon 'o'");
-        fflush(stdout);
+        (void)fflush(stdout);
         if (r < 0.1) {
             puts("\nCrashed into the star.");
             return 2;
