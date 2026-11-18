@@ -179,6 +179,22 @@ The Ice Run を実キーと実クリックで両方の結末まで航行する�
 詳細は [検証記録](docs/validation.md)、[機械記録](docs/validation.json)、[原画の生成指示と採否](docs/art-direction.md)。
 人間の初見試遊、実スマートフォン、各ブラウザーでの操作は未検証。公開配信は行っていない。
 
+### ローカル専用の標準入口(M61)
+
+```sh
+make check        # 単体・要件対応(trace)・bench・smoke をまとめて実行
+make test-unit    # make test と同じプログラム + docs/theory の契約検査
+make test-trace   # [REQ-...] を名前に持つ testcase だけ(docs/requirements.md と照合)
+make test-perf    # make bench
+make test-e2e     # make smoke
+```
+
+各プログラムを CTest の testcase 1 件として登録し(`tests/ctest/CMakeLists.txt`)、
+共通 runner(`~/project-context/bin/tm-test.py`)が追跡ファイルだけの一時コピーで実行する。
+結果は git 管理外の `test-results/<run_id>/<kind>.xml` と `test-results/summary.json`。
+必要なもの: `cc`・`cmake`/`ctest`・Python 3.14、smoke には `emcc` と npm の cache にある Playwright。
+置かない種類と理由は `test-inventory.json`。
+
 ![軌道](docs/track.svg)
 ![半径](docs/radius.svg)
 ![エネルギー誤差](docs/energy.svg)
