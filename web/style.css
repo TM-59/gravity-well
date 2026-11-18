@@ -311,9 +311,6 @@ canvas {
 .primary:hover {
   background: #edc795;
 }
-.mission-buttons button span {
-  font-size: 17px;
-}
 .telemetry {
   padding: 16px 20px;
   flex: 1;
@@ -383,9 +380,14 @@ output {
   color: #d2dde6;
   margin: 0;
 }
+/* The control groups are <fieldset> elements; drop the fieldset frame so they lay out like a box. */
 .controls {
   display: flex;
   gap: 7px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 .controls button {
   font-size: 14px;
@@ -398,6 +400,9 @@ output {
   margin-left: 4px;
   color: var(--muted);
   font-size: 14px;
+}
+.mission-buttons button span {
+  font-size: 17px;
 }
 .controls .burn {
   border-color: #a87d4e;
@@ -685,10 +690,6 @@ body[data-mode="voyage"] .flight-only {
   gap: 8px;
   margin-top: 6px;
 }
-#scene-options button {
-  font-size: 14px;
-  text-align: left;
-}
 #scene-options .primary {
   background: #d2af83;
   border-color: #d2af83;
@@ -698,11 +699,6 @@ body[data-mode="voyage"] .flight-only {
 /* Heavy scenes: a dark, still panel. No banner, no colour of success. */
 #scene.heavy {
   background: #05080bf7;
-}
-#scene.heavy h3 {
-  color: #b9c2c9;
-  font-weight: 400;
-  letter-spacing: 0.5px;
 }
 #scene.heavy #scene-text b {
   color: #b9c2c9;
@@ -774,6 +770,10 @@ body[data-mode="voyage"] .flight-only {
 .chart-options button {
   min-height: 44px;
 }
+#scene-options button {
+  font-size: 14px;
+  text-align: left;
+}
 #welcome {
   position: absolute;
   inset: 0;
@@ -794,6 +794,11 @@ body[data-mode="voyage"] .flight-only {
   font-size: 24px;
   font-weight: 500;
   letter-spacing: -0.3px;
+}
+#scene.heavy h3 {
+  color: #b9c2c9;
+  font-weight: 400;
+  letter-spacing: 0.5px;
 }
 #welcome > p:not(.eyebrow) {
   margin: 0 0 14px;
