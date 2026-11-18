@@ -24,6 +24,11 @@ ignore = [
   "D213",
   # Conflicts with `ruff format` (Ruff documents it as unsafe to combine with the formatter).
   "COM812",
+  # S603 and S607 contradict each other for programs without a fixed location: S607 (kept) wants an
+  # absolute path, which for `git` and the Python of the common runner is only known at run time
+  # (shutil.which / sys.executable), and S603 flags every argument list that is not literal.
+  # Keep S607; leave out S603.
+  "S603",
 ]
 
 [tool.mypy]

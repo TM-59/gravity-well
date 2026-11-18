@@ -69,7 +69,7 @@ web: dist/orbit.js dist/cr3bp.js
 	cp web/lagrange.html web/lagrange.css web/lagrange.js dist/
 	mkdir -p dist/art
 	cp assets/art/* dist/art/
-	$(PYTHON) scripts/check-size.py
+	$(PYTHON) scripts/check_size.py
 
 dist/orbit.js: src/orbit.c src/orbit.h src/flight.c src/flight.h src/voyage.c src/voyage.h src/voyage_web.c
 	mkdir -p dist
@@ -107,7 +107,7 @@ lagrange-plots: gravity-well
 
 # Fails when a statement of docs/theory has no figure, a link is broken, or a referenced function or test is gone.
 theory-check:
-	$(PYTHON) scripts/theory-check.py
+	$(PYTHON) scripts/theory_check.py
 
 clean:
 	rm -f gravity-well test_orbit test_gif test_flight test_voyage story_bench theory_figs test_cr3bp
@@ -124,13 +124,13 @@ TM_UNIT_BINS := test_orbit test_gif test_flight test_voyage story_bench test_cr3
 
 .PHONY: test-unit check test-trace test-perf test-e2e tm-ctest tm-deps test-tm-unit test-tm-trace test-tm-perf test-tm-e2e
 test-unit:
-	$(TM_TEST_PYTHON) scripts/local-test.py unit
+	$(TM_TEST_PYTHON) scripts/local_test.py unit
 
 check:
-	$(TM_TEST_PYTHON) scripts/local-test.py all
+	$(TM_TEST_PYTHON) scripts/local_test.py all
 
 test-trace test-perf test-e2e:
-	$(TM_TEST_PYTHON) scripts/local-test.py $(@:test-%=%)
+	$(TM_TEST_PYTHON) scripts/local_test.py $(@:test-%=%)
 
 tm-ctest:
 	mkdir -p test-results
