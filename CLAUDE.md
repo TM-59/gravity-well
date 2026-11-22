@@ -27,6 +27,7 @@ C11 + libm の軌道力学シミュレーター。既存の端末表示・GIF・
 - 公開リポジトリ。コミット・PR に生成 AI の署名を入れない。
 - 整形・lint・型検査は `make fmt` / `make check-style`(clang-format・clang-tidy・-Werror、Ruff・mypy strict、Biome・tsc --checkJs。版は uv.lock と package-lock.json)。抑制コメント・除外は置かない。C ライブラリのヘッダーが既定の場所に無い端末は `TIDY_EXTRA="-isystem <dir>"`。
   Biome の対象外は書いていない生成物だけ: `docs/narrative/{play-order,ablation,tension}.json`(`make story`)と `docs/theory/figures/values.md`(`make theory-figs`)。Ruff で外すのは両立しない規則の片方だけ(pyproject.toml に相手と理由)。
+- 物語の再生操作(#27): 時間で流れる物語の場面は 0(場面は選択を押すまで止まり、帯・実演・時計は本編の時間)。時間で流れる場面を足す PR で、スキップ・2 倍早送り・0.5 倍遅送り・一時停止・再開を同時に入れる。
 
 ## M4 の独自原画の例外
 
