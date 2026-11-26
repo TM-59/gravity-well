@@ -1,0 +1,72 @@
+{
+ "note": "BGM の生成計画(gravity-well M63 #34、親 project-context#598)。caption は音の特徴だけ(曲名・作者・作品名を書かない。musical-notation-translator の docs/copyright-policy.md)。どの場面も文字か計器を読むので全部器楽。soft の曲のループは bars × 4 × 60 / bpm ≥ 16 秒(orbit 30.0・story 24.8・quay 23.2 秒)。 候補は Colab の GPU で作る(local-llm-ops #260、python -m tools.colab bgm)、落ちる先は scripts/bgm_gen.py(手元の CPU)。scripts/bgm_bake.py が門・ループの切り出し・書き出し(web/bgm/)。",
+ "engine": "ACE-Step/Ace-Step1.5:acestep-v15-turbo",
+ "steps": 8,
+ "note_loop": "ループは生成の長さより十分短く取り、継ぎ目の始点を探す余地を残す。soft の曲は継ぎ目を 2 秒重ね、長さを 1 小節ずつ縮めて 16 秒以上で継ぎ目の音色の跳びが最小の物を採る。pulse は 0.12 秒(拍がずれない)。",
+ "seeds": [
+  921,
+  922,
+  923,
+  924,
+  925,
+  926
+ ],
+ "note_seeds": "seed は 1 場面 6 本。他の作品と同じ caption・seed を使わない(既存の plan.json の seed 11〜876 と別の 921〜926)。",
+ "scenes": {
+  "orbit": {
+   "role": "基調(入口・手動航行・Hohmann の実演)",
+   "loop": true,
+   "bpm": 64,
+   "key": "E major",
+   "seconds": 44,
+   "bars": 8,
+   "mood": "soft",
+   "xf": 2.0,
+   "captions": [
+    "slow spacious ballad, soft grand piano melody, shimmering synth string pad, gentle glass harmonica tones, drifting in orbit around a quiet star, serene and wondering, no drums, instrumental",
+    "tender cosmic ballad, warm cello melody over soft analog pad and slow harp arpeggios, weightless and calm, no percussion, instrumental"
+   ]
+  },
+  "voyage": {
+   "role": "戦闘の役(The Ice Run の 5 区間を燃料と時間で飛ぶ間)",
+   "loop": true,
+   "bpm": 110,
+   "key": "B minor",
+   "seconds": 44,
+   "bars": 16,
+   "mood": "pulse",
+   "captions": [
+    "driving space flight track, steady kick drum on every beat, pulsing arpeggiated synth bass, fast string ostinato, bright brass accents, engines burning to catch an orbit, tense and bold, instrumental",
+    "propulsive mission music, tight electronic snare on every beat, rolling toms, staccato low strings, rising synth lead, racing a dwindling fuel tank, determined, instrumental"
+   ]
+  },
+  "story": {
+   "role": "物語(The Ice Run の場面。重い場面 flare・ilse・silence と一時停止は 0.4 倍)",
+   "loop": true,
+   "bpm": 58,
+   "key": "E major",
+   "seconds": 40,
+   "bars": 6,
+   "mood": "soft",
+   "xf": 2.0,
+   "captions": [
+    "sparse lonely space underscore, soft celesta and distant piano notes, low sustained synth drone, long pauses, a calm voice on a far radio channel, quiet and tender, no drums, instrumental",
+    "minimal cold score, slow bowed bass drone with single music box notes, wide near silence, an empty channel in deep space, no percussion, instrumental"
+   ]
+  },
+  "quay": {
+   "role": "結末(Lamp Quay に着いた後の場面)",
+   "loop": true,
+   "bpm": 62,
+   "key": "A major",
+   "seconds": 40,
+   "bars": 6,
+   "mood": "soft",
+   "xf": 2.0,
+   "captions": [
+    "gentle homecoming ballad, warm piano and solo flute melody, slow swelling strings, lamps of a harbor coming into view, relieved and bittersweet, no drums, instrumental",
+    "slow closing ballad, soft acoustic guitar and string quartet, a long voyage ending in warm light, tender and quiet, no percussion, instrumental"
+   ]
+  }
+ }
+}
