@@ -37,7 +37,9 @@
    "mood": "pulse",
    "captions": [
     "driving space flight track, steady kick drum on every beat, pulsing arpeggiated synth bass, fast string ostinato, bright brass accents, engines burning to catch an orbit, tense and bold, instrumental",
-    "propulsive mission music, tight electronic snare on every beat, rolling toms, staccato low strings, rising synth lead, racing a dwindling fuel tank, determined, instrumental"
+    "propulsive mission music, tight electronic snare on every beat, rolling toms, staccato low strings, rising synth lead, racing a dwindling fuel tank, determined, instrumental",
+    "relentless space chase track, full drum kit with kick on every beat from the very first bar, driving eighth-note synth bass, urgent staccato strings and brass stabs throughout, no intro, no breakdown, constant high energy, instrumental",
+    "intense orbital burn music, pounding toms and snare on every beat all the way through, fast arpeggiated synth ostinato, low brass pulses, dense and steady from start to end, no quiet sections, instrumental"
    ]
   },
   "story": {
@@ -68,5 +70,6 @@
     "slow closing ballad, soft acoustic guitar and string quartet, a long voyage ending in warm light, tender and quiet, no percussion, instrumental"
    ]
   }
- }
+ },
+ "note_voyage": "voyage は c0・c1 の 12 本で門の通過が 2 本だけで、採れた候補は 1 周 35 秒の前半約 16 秒が薄い(打楽器と低い帯が無い。中央値から 12 dB までは落ちないので門は通る)。戦闘の役はすぐ戦闘と分かる必要があるので、頭から終わりまで拍が続くよう指示した c2・c3 を同じ seed で 12 本足した(2 回目の確保)。"
 }
