@@ -65,7 +65,9 @@ bench: test_flight
 	./test_flight --bench
 
 web: dist/orbit.js dist/cr3bp.js
-	cp web/index.html web/style.css web/app.js dist/
+	cp web/index.html web/style.css web/app.js web/bgm.js dist/
+	mkdir -p dist/bgm
+	cp web/bgm/* dist/bgm/
 	cp web/lagrange.html web/lagrange.css web/lagrange.js dist/
 	mkdir -p dist/art
 	cp assets/art/* dist/art/

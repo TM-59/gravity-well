@@ -147,10 +147,28 @@ interface LabSnapshot extends LabState {
 }
 
 interface Window {
+  /** The music player (web/bgm.js) for scripts/bgm-smoke.cjs. */
+  readonly musicView?: BgmView;
   readonly orbitView?: { readonly snapshot: OrbitSnapshot | null };
   readonly lagrangeView?: { readonly snapshot: LabSnapshot | null };
   /** Common test hook of the playability gate (project-context rules/playability.json). */
   __tmGate?: object;
   /** Font sizes passed to fillText, collected by scripts/lagrange-smoke.cjs. */
   canvasFonts?: number[];
+}
+
+/** What the music player asks for and what it plays (web/bgm.js). */
+interface BgmView {
+  cue: { track: string; gain: number };
+  want: string | null;
+  playing: string;
+  gain: number;
+  muted: boolean;
+  unlocked: boolean;
+  running: boolean;
+  fetched: string[];
+  loaded: string[];
+  failed: string[];
+  /** Output RMS in dBFS. */
+  level: number;
 }

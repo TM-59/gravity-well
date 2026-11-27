@@ -29,6 +29,12 @@ C11 + libm の軌道力学シミュレーター。既存の端末表示・GIF・
   Biome の対象外は書いていない生成物だけ: `docs/narrative/{play-order,ablation,tension}.json`(`make story`)と `docs/theory/figures/values.md`(`make theory-figs`)。Ruff で外すのは両立しない規則の片方だけ(pyproject.toml に相手と理由)。
 - 物語の再生操作(#27): 時間で流れる物語の場面は 0(場面は選択を押すまで止まり、帯・実演・時計は本編の時間)。時間で流れる場面を足す PR で、スキップ・2 倍早送り・0.5 倍遅送り・一時停止・再開を同時に入れる。
 
+## BGM(2026-11-27、Issue #34)
+
+- ブラウザー版の観測画面だけに BGM。`web/bgm.js` の `cue()` が画面から曲を選ぶ: 入口・手動航行・Hohmann の実演 = orbit(基調のバラード)、The Ice Run の区間 = voyage(戦闘の役、pulse、一時停止 0.4 倍)、場面 = story(0.7 倍、重い場面 0.4 倍)、Lamp Quay = quay。全部器楽。端末版・GIF・CSV/SVG・`lagrange.html` は無音。
+- 曲は ACE-Step 1.5(MIT)の独自生成。`docs/bgm/plan.json` から作り、`scripts/bgm_bake.py` の門を緩めずに通した物だけ(`docs/bgm.md`)。第三者の音声は使わない。最初の操作の前は読まない。
+- 消音は ♪(44px)と N(M は Ice Run の match)。出口(master)でも切る。`node scripts/bgm-smoke.cjs`(ローカル専用)が確かめる。
+
 ## M4 の独自原画の例外
 
 Codex built-in image_gen が生成したオリジナルの宇宙船原画2枚を許可する。

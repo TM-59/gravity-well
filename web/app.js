@@ -1,4 +1,6 @@
 /* Only presentation lives here. Every state value and integration step is C. */
+import { BgmPlayer, cue } from './bgm.js';
+
 /** @param {string} id */
 const $ = (id) => {
   const element = document.getElementById(id);
@@ -780,6 +782,7 @@ function frame(now) {
   lastTime = now;
   update();
   draw();
+  musicFrame();
   requestAnimationFrame(frame);
 }
 /** @type {Record<string, string>} */
@@ -878,6 +881,51 @@ $('voyage-reset').onclick = () => reset(2, false);
 $('rate').onchange = () => {
   accumulator = 0;
 };
+// ------------------------------------------------------------------ music (docs/bgm.md)
+// Ballad on the welcome, manual flight and the demonstration, a pulse track while flying a leg of
+// the Ice Run, quiet music under a scene and its own track at Lamp Quay. Nothing loads before the
+// first press. M is the Ice Run's match burn, so N toggles the music.
+const music = new BgmPlayer();
+const muteButton = $as('mute', HTMLButtonElement);
+let muted = false;
+/** @param {boolean} value */
+function setMuted(value) {
+  muted = value;
+  muteButton.setAttribute('aria-pressed', String(muted));
+  muteButton.setAttribute('aria-label', muted ? 'Play music' : 'Mute music');
+  muteButton.title = muted ? 'Music off · N plays' : 'Music on · N mutes';
+}
+muteButton.onclick = () => setMuted(!muted);
+window.addEventListener('pointerdown', () => music.unlock(), true);
+window.addEventListener(
+  'keydown',
+  (event) => {
+    music.unlock();
+    if (
+      event.key.toLowerCase() === 'n' &&
+      !event.repeat &&
+      !/^(SELECT|INPUT)$/.test(tagOf(event.target))
+    )
+      setMuted(!muted);
+  },
+  true,
+);
+const musicCue = () => {
+  const s = voyage && state && state.scene >= 0 ? SCENES[state.scene] : null;
+  return cue({
+    voyage,
+    scene: s ? s.id : null,
+    heavy: Boolean(s?.heavy),
+    paused,
+    over: Boolean(voyage && finished()),
+  });
+};
+function musicFrame() {
+  music.set(musicCue(), muted);
+}
+Object.defineProperty(window, 'musicView', {
+  get: () => ({ cue: musicCue(), ...music.state() }),
+});
 // Read-only observations for automated verification and scientific inspection.
 Object.defineProperty(window, 'orbitView', {
   value: Object.freeze({
